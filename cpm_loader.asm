@@ -1,6 +1,20 @@
-; Head 0, Track 0, Sector 0
 ; CP/M loader
 
+;**************************************************************
+;*
+;*             CP/M loader  version   2.2
+;*
+;*       Reconstructed from Sanco CP/M Floppy Image
+;*              Head 0, Track 0, Sector 0
+;*
+;*                by RetrOfficina GLG
+;*
+;**************************************************************
+
+    org 0x0080
+
+PUBLIC _main
+_main:
 cpm_loader:
     ld      sp,$0080                        ;[0080] set stack pointer
     call    $00c5                           ;[0083] same as fdc_wait_busy in ROM
@@ -21,7 +35,7 @@ cpm_loader:
     ld      hl,$e000                        ;[00a7] move $e000 -> $dc00
     ld      de,$dc00                        ;[00aa]
     ld      bc,$1400                        ;[00ad]
-    ldir                                    ;[00b0] while (bc--) (*de++) = (*hl++); 
+    ldir                                    ;[00b0] while (bc--) (*de++) = (*hl++);
 
     ld      hl,$f000                        ;[00b2] buffer address
     ld      d,$00                           ;[00b5] track number = 0
@@ -32,16 +46,18 @@ cpm_loader:
     call    $00d8                           ;[00bf] ... read 3840 bytes (0x0F00)
     jp      $f200                           ;[00c2] jump to just loaded code
 
+label_00c5:
     in      a,($c0)                         ;[00c5]
     bit     4,a                             ;[00c7]
-    jr      nz,$00c5                        ;[00c9]
+    jr      nz,label_00c5                   ;[00c9]
     ret                                     ;[00cb]
 
+label_00cc:
     in      a,($c0)                         ;[00cc]
     rlca                                    ;[00ce]
-    jr      nc,$00cc                        ;[00cf]
+    jr      nc,label_00cc                   ;[00cf]
     rlca                                    ;[00d1]
-    jr      c,$00cc                         ;[00d2]
+    jr      c,label_00cc                    ;[00d2]
     ld      a,c                             ;[00d4]
     out     ($c1),a                         ;[00d5]
     ret                                     ;[00d7]
@@ -52,20 +68,22 @@ cpm_loader:
     out     ($81),a                         ;[00dd]
     pop     af                              ;[00df]
     ld      ($00fd),a                       ;[00e0] write to ram?
+label_00e3:
     ld      a,($00fd)                       ;[00e3] read from ram?
     call    $c018                           ;[00e6] call fdc_rwfs
     or      a                               ;[00e9] check if zero was returned
-    jr      z,$00f3                         ;[00ea] if zero, return successfully
+    jr      z,label_00f3                    ;[00ea] if zero, return successfully
     out     ($da),a                         ;[00ec] else beep...
     ld      a,($00fd)                       ;[00ee] ...then load something...
-    jr      $00e3                           ;[00f1] ...then retry
+    jr      label_00e3                      ;[00f1] ...then retry
+label_00f3:
     push    af                              ;[00f3] epilogue and return
     in      a,($81)                         ;[00f4]
     set     0,a                             ;[00f6]
     out     ($81),a                         ;[00f8]
     pop     af                              ;[00fa]
     ret                                     ;[00fb]
-    
+
     BYTE $e5 ;[00fc]
     BYTE $d5 ;[00fd]
     BYTE $2a ;[00fe]

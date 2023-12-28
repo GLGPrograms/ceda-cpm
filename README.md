@@ -25,7 +25,6 @@ To better handle the disassmbley and analysis of the CP/M components, each one w
 - [cpm_bdos.bin](./cpm_bdos.bin), 3584 bytes long, loaded from `$e400`;
 - [cpm_ccp.bin](./cpm_ccp.bin), 2048 bytes long, loaded from `$dc00`.
 
-
 ### How to
 
 At the moment, only the loader and the BIOS are disassemblied.

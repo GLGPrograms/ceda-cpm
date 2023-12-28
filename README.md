@@ -25,6 +25,18 @@ To better handle the disassmbley and analysis of the CP/M components, each one w
 - [cpm_bdos.bin](./cpm_bdos.bin), 3584 bytes long, loaded from `$e400`;
 - [cpm_ccp.bin](./cpm_ccp.bin), 2048 bytes long, loaded from `$dc00`.
 
+
+### How to
+
+At the moment, only the loader and the BIOS are disassemblied.
+To build them, just run
+
+    make assemble
+
+To check the asm file consistency, run
+
+    make test
+
 ## Other contributions
 
 - [RetroNewbie/Sanco_8000](https://github.com/RetroNewbie/Sanco_8000/tree/main/CP-M), some disassemblies of the software inside in this floppy.

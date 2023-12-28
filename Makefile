@@ -3,23 +3,32 @@
 ECHO	:=	@echo
 QUIET	:=	@
 
+ASM     := cpm_bios.asm
+ASM     += cpm_loader.asm
+
+BIN     := $(patsubst %.asm, build/%.bin, $(ASM))
+
+CHK     := $(patsubst %.asm, %.chk, $(ASM))
+
 all: tests
 
 .PHONY: tests
 tests: checksum
 
 .PHONY: checksum
-checksum: assemble
-	$(ECHO) '	SUM'
-	$(QUIET) diff build/cpm_bios.bin cpm_bios.bin
+checksum: $(CHK)
 
 .PHONY: assemble
-assemble: build/cpm_bios.bin
+assemble: $(BIN)
 
 build/%.bin: %.asm
 	$(QUIET) mkdir -p `dirname $@`
-	$(ECHO) '	ASM' $<
+	$(ECHO) '	ASM $<'
 	$(QUIET) zcc +z80 -subtype=none -o $@ $<
+
+%.chk: %.bin build/%.bin
+	$(ECHO) '	SUM $<'
+	$(QUIET) diff build/$< $<
 
 .PHONY: clean
 clean:

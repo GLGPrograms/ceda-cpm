@@ -13,7 +13,7 @@ The Sanco BIOS ROM loads Head 0, Track 0, Sector 0 in memory (addr $0080), see [
 This code acts as loader for the various parts of the CP/M. It loads:
 
 - 5120 bytes from Head 1, Track 0, Sectors 0-4 in $dc00-$f000. This code contains the CP/M command processor (CCP) and part of the CP/M Basic DOS (BDOS) (confirmed by "Soul of CP/M" manual).
-- 3840 bytes from Head 0, Track 0, Sectors 1-15 in $f000-$ff00. It contains the remaining part of the BDOS, but it mostly contain the CP/M BIOS (confirmed by "Soul of CP/M" manual).
+- 3840 bytes from Head 0, Track 0, Sectors 1-15 in $f000-$ff00. It contains the remaining part of the BDOS, but it mostly contain the CP/M BIOS (confirmed by "Soul of CP/M" manual), see [cpm_bios](cpm_bios.asm)
 
 After loading these sectors, the loader routine jumps to $f200, which is the first entry of the BIOS jump table (BOOT).
 

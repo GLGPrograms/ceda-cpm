@@ -40,7 +40,7 @@ _main:
 
 ; TODO DPH for disk 0
     DW 0                                    ;[f237] Address of sector translation table
-    DW 0, 0, 0                              ;[f239] Used as workspace by CP/M
+    DW 0, 0, 0                              ; Used as workspace by CP/M
     DW $fd7c                                ; Address of a 128-byte sector buffer
                                             ;  this is the same for all DPHs in the system.
     DW $f267                                ; Address of the DPB
@@ -51,7 +51,7 @@ _main:
                                             ;  for this drive.
 ; TODO DPH for disk 1
     DW 0                                    ;[f247] Address of sector translation table
-    DW 0, 0, 0                              ;[] Used as workspace by CP/M
+    DW 0, 0, 0                              ; Used as workspace by CP/M
     DW $fd7c                                ; Address of a 128-byte sector buffer
                                             ;  this is the same for all DPHs in the system.
     DW $f284                                ; Address of the DPB
@@ -62,8 +62,8 @@ _main:
                                             ;  for this drive.
 
 ; TODO DPH for disk 2 (what is disk 2??)
-    DW 0                                    ;[] Address of sector translation table
-    DW 0, 0, 0                              ;[] Used as workspace by CP/M
+    DW 0                                    ;[f257] Address of sector translation table
+    DW 0, 0, 0                              ; Used as workspace by CP/M
     DW $fd7c                                ; Address of a 128-byte sector buffer
                                             ;  this is the same for all DPHs in the system.
     DW $f2ac                                ; Address of the DPB

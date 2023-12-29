@@ -30,148 +30,162 @@ _main:
     jp      $f3da                           ;[f22d] LISTST
     jp      $f4c4                           ;[f230] SECTRAN
 
-; This is some kind of table addressed during the code
-    jr      nc,label_f265                   ;[f233] 30 30
-    inc     sp                              ;[f235] 33
-    scf                                     ;[f236] 37
-    nop                                     ;[f237] 00
-    nop                                     ;[f238] 00
-    nop                                     ;[f239] 00
-    nop                                     ;[f23a] 00
-    nop                                     ;[f23b] 00
-    nop                                     ;[f23c] 00
-label_f23d:
-    nop                                     ;[f23d] 00
-    nop                                     ;[f23e] 00
-    ld      a,h                             ;[f23f] 7c
-    ld      iyh,a                           ;[f240] fd 67
-    jp      p,$fe15                         ;[f242] f2 15 fe
-    call    m,$00fd                         ;[f245] fc fd 00
-    nop                                     ;[f248] 00
-    nop                                     ;[f249] 00
-    nop                                     ;[f24a] 00
-    nop                                     ;[f24b] 00
-    nop                                     ;[f24c] 00
-    nop                                     ;[f24d] 00
-    nop                                     ;[f24e] 00
-    ld      a,h                             ;[f24f] 7c
-    add     iyh                             ;[f250] fd 84
-    jp      p,$fe4e                         ;[f252] f2 4e fe
-    dec     (hl)                            ;[f255] 35
-    cp      $00                             ;[f256] fe 00
-    nop                                     ;[f258] 00
-    nop                                     ;[f259] 00
-    nop                                     ;[f25a] 00
-    nop                                     ;[f25b] 00
-    nop                                     ;[f25c] 00
-    nop                                     ;[f25d] 00
-    nop                                     ;[f25e] 00
-    ld      a,h                             ;[f25f] 7c
-    xor     iyh                             ;[f260] fd ac
-    jp      p,$fe94                         ;[f262] f2 94 fe
-label_f265:
-    ld      l,(hl)                          ;[f265] 6e
-    cp      $50                             ;[f266] fe 50
-    nop                                     ;[f268] 00
-    dec     b                               ;[f269] 05
-    rra                                     ;[f26a] 1f
-    inc     bc                              ;[f26b] 03
-    call    nz,$7f00                        ;[f26c] c4 00 7f
-    nop                                     ;[f26f] 00
-    add     b                               ;[f270] 80
-    nop                                     ;[f271] 00
-    jr      nz,label_f274                   ;[f272] 20 00
-label_f274:
-    ld      bc,$2000                        ;[f274] 01 00 20
-    ld      d,b                             ;[f277] 50
-    rlca                                    ;[f278] 07
-    inc     bc                              ;[f279] 03
-    nop                                     ;[f27a] 00
-    inc     bc                              ;[f27b] 03
-    dec     b                               ;[f27c] 05
-    nop                                     ;[f27d] 00
-    nop                                     ;[f27e] 00
-    nop                                     ;[f27f] 00
-    ld      (bc),a                          ;[f280] 02
-    inc     b                               ;[f281] 04
-    ld      bc,$5003                        ;[f282] 01 03 50
-    nop                                     ;[f285] 00
-    dec     b                               ;[f286] 05
-    rra                                     ;[f287] 1f
-    inc     bc                              ;[f288] 03
-    call    nz,$7f00                        ;[f289] c4 00 7f
-    nop                                     ;[f28c] 00
-    add     b                               ;[f28d] 80
-    nop                                     ;[f28e] 00
-    jr      nz,label_f291                   ;[f28f] 20 00
-label_f291:
-    ld      bc,$2000                        ;[f291] 01 00 20
-    ld      d,b                             ;[f294] 50
-    rlca                                    ;[f295] 07
-    inc     bc                              ;[f296] 03
-    ld      bc,$0503                        ;[f297] 01 03 05
-    nop                                     ;[f29a] 00
-    nop                                     ;[f29b] 00
-    nop                                     ;[f29c] 00
-    ld      (bc),a                          ;[f29d] 02
-    inc     b                               ;[f29e] 04
-    ld      bc,$0003                        ;[f29f] 01 03 00
-    nop                                     ;[f2a2] 00
-    nop                                     ;[f2a3] 00
-    nop                                     ;[f2a4] 00
-    nop                                     ;[f2a5] 00
-    nop                                     ;[f2a6] 00
-    nop                                     ;[f2a7] 00
-    nop                                     ;[f2a8] 00
-    nop                                     ;[f2a9] 00
-    nop                                     ;[f2aa] 00
-    nop                                     ;[f2ab] 00
-    add     b                               ;[f2ac] 80
-    nop                                     ;[f2ad] 00
-    dec     b                               ;[f2ae] 05
-    rra                                     ;[f2af] 1f
-    nop                                     ;[f2b0] 00
-    dec     hl                              ;[f2b1] 2b
-    ld      bc,$007f                        ;[f2b2] 01 7f 00
-    add     b                               ;[f2b5] 80
-    nop                                     ;[f2b6] 00
-    jr      nz,label_f2b9                   ;[f2b7] 20 00
-label_f2b9:
-    ld      (bc),a                          ;[f2b9] 02
-    nop                                     ;[f2ba] 00
-    jr      nz,label_f23d                   ;[f2bb] 20 80
-    rlca                                    ;[f2bd] 07
-    inc     bc                              ;[f2be] 03
-    add     d                               ;[f2bf] 82
-    inc     bc                              ;[f2c0] 03
-    ex      af,af'                          ;[f2c1] 08
-    nop                                     ;[f2c2] 00
-    nop                                     ;[f2c3] 00
-    nop                                     ;[f2c4] 00
-    inc     bc                              ;[f2c5] 03
-    ld      b,$01                           ;[f2c6] 06 01
-    inc     b                               ;[f2c8] 04
-    rlca                                    ;[f2c9] 07
-    ld      (bc),a                          ;[f2ca] 02
-    dec     b                               ;[f2cb] 05
-    nop                                     ;[f2cc] 00
-    nop                                     ;[f2cd] 00
-    nop                                     ;[f2ce] 00
-    nop                                     ;[f2cf] 00
-    nop                                     ;[f2d0] 00
-    nop                                     ;[f2d1] 00
-    nop                                     ;[f2d2] 00
-    nop                                     ;[f2d3] 00
-    nop                                     ;[f2d4] 00
-    nop                                     ;[f2d5] 00
-    nop                                     ;[f2d6] 00
-    nop                                     ;[f2d7] 00
-    nop                                     ;[f2d8] 00
-    nop                                     ;[f2d9] 00
-    nop                                     ;[f2da] 00
-    nop                                     ;[f2db] 00
-    nop                                     ;[f2dc] 00
-    nop                                     ;[f2dd] 00
+; TODO
+    DB      "0037"                          ;[f231]
+
+; CP/M Disc Parameter Header
+; https://www.seasip.info/Cpm/dph.html
+; In CP/M, the DPH is a BIOS structure containing information about a disk drive.
+; The actual format of the DPH is version-dependent.
+
+; TODO DPH for disk 0
+    DW 0                                    ;[f237] Address of sector translation table
+    DW 0, 0, 0                              ;[f239] Used as workspace by CP/M
+    DW $fd7c                                ; Address of a 128-byte sector buffer
+                                            ;  this is the same for all DPHs in the system.
+    DW $f267                                ; Address of the DPB
+                                            ;  giving the format of this drive.
+    DW $fe15                                ; Address of the directory checksum vector
+                                            ;  for this drive.
+    DW $fdfc                                ; Address of the allocation vector
+                                            ;  for this drive.
+; TODO DPH for disk 1
+    DW 0                                    ;[f247] Address of sector translation table
+    DW 0, 0, 0                              ;[] Used as workspace by CP/M
+    DW $fd7c                                ; Address of a 128-byte sector buffer
+                                            ;  this is the same for all DPHs in the system.
+    DW $f284                                ; Address of the DPB
+                                            ;  giving the format of this drive.
+    DW $fe4e                                ; Address of the directory checksum vector
+                                            ;  for this drive.
+    DW $fe35                                ; Address of the allocation vector
+                                            ;  for this drive.
+
+; TODO DPH for disk 2 (what is disk 2??)
+    DW 0                                    ;[] Address of sector translation table
+    DW 0, 0, 0                              ;[] Used as workspace by CP/M
+    DW $fd7c                                ; Address of a 128-byte sector buffer
+                                            ;  this is the same for all DPHs in the system.
+    DW $f2ac                                ; Address of the DPB
+                                            ;  giving the format of this drive.
+    DW $fe94                                ; Address of the directory checksum vector
+                                            ;  for this drive.
+    DW $fe6e                                ; Address of the allocation vector
+                                            ;  for this drive.
+
+; TODO DPB for disk 0
+    DW      80                              ;[f267] Number of 128-byte records per track
+    DB      5                               ;[f269] Block shift. 3 => 1k, 4 => 2k, 5 => 4k
+    DB      0x1f                            ;[f26a] Block mask. 7 => 1k, 0Fh => 2k, 1Fh => 4k...
+    DB      03                              ;[f26b] Extent mask
+    DW      196                             ;[f26c] (no. of blocks on the disk)-1
+    DW      0x7f                            ;[f26e] (no. of directory entries)-1
+    DB      0x80                            ;[f270] Directory allocation bitmap, first byte
+    DB      0                               ;[f271] Directory allocation bitmap, second byte
+    DW      0x0020                          ;[f272] Checksum vector size, 0 for a fixed disk
+                                            ;       No. directory entries/4, rounded up.
+    DB      1                               ;[f274] Offset, number of reserved tracks
+
+    DB      0x00 ; TODO
+    DB      0x20
+    DB      0x50                            ;[f277]
+    DB      0x07                            ;[f278]
+    DB      0x03                            ;[f279]
+    DB      0x00                            ;[f27a]
+    DB      0x03                            ;[f27b]
+    DB      0x05                            ;[f27c]
+    DB      0x00                            ;[f27d]
+    DB      0x00                            ;[f27e]
+    DB      0x00                            ;[f27f]
+    DB      0x02                            ;[f280]
+    DB      0x04                            ;[f281]
+    DB      1                               ;[f282]
+    DB      3
+
+; TODO DPB for disk 1
+    DW      80                              ;[f284] Number of 128-byte records per track
+    DB      5                               ;[f286] Block shift. 3 => 1k, 4 => 2k, 5 => 4k
+    DB      0x1f                            ;[f287] Block mask. 7 => 1k, 0Fh => 2k, 1Fh => 4k...
+    DB      03                              ;[f288] Extent mask
+    DW      196                             ;[f289] (no. of blocks on the disk)-1
+    DW      0x7f                            ;[f28b] (no. of directory entries)-1
+    DB      0x80                            ;[f28d] Directory allocation bitmap, first byte
+    DB      0                               ;[f28e] Directory allocation bitmap, second byte
+    DW      0x0020                          ;[f28f] Checksum vector size, 0 for a fixed disk
+                                            ;       No. directory entries/4, rounded up.
+    DB      1                               ;[f291] Offset, number of reserved tracks
+
+    DB      00                              ;[f292] TODO
+    DB      0x20                            ;[f293]
+    DB      0x50                            ;[f294]
+    DB      0x07                            ;[f295]
+    DB      0x03                            ;[f296]
+    DB      0x01, 0x03, 0x05                ;[f297]
+    DB      0x00                            ;[f29a]
+    DB      0x00                            ;[f29b]
+    DB      0x00                            ;[f29c]
+    DB      0x02                            ;[f29d]
+    DB      0x04                            ;[f29e]
+    DB      0x01, 0x03, 0x00                ;[f29f]
+    DB      0x00                            ;[f2a2]
+    DB      0x00                            ;[f2a3]
+    DB      0x00                            ;[f2a4]
+    DB      0x00                            ;[f2a5]
+    DB      0x00                            ;[f2a6]
+    DB      0x00                            ;[f2a7]
+    DB      0x00                            ;[f2a8]
+    DB      0x00                            ;[f2a9]
+    DB      0x00                            ;[f2aa]
+    DB      0x00                            ;[f2ab]
+
+; TODO DPB for disk 2
+    DW      128                             ;[f2ac] Number of 128-byte records per track
+    DB      5                               ;[f2ae] Block shift. 3 => 1k, 4 => 2k, 5 => 4k
+    DB      0x1f                            ;[f2af] Block mask. 7 => 1k, 0Fh => 2k, 1Fh => 4k...
+    DB      00                              ;[f2b0] Extent mask
+    DW      299                             ;[f2b1] (no. of blocks on the disk)-1
+    DW      0x7f                            ;[f2b3] (no. of directory entries)-1
+    DB      0x80                            ;[f2b5] Directory allocation bitmap, first byte
+    DB      0                               ;[f2b6] Directory allocation bitmap, second byte
+    DW      0x0020                          ;[f2b7] Checksum vector size, 0 for a fixed disk
+                                            ;       No. directory entries/4, rounded up.
+    DB      2                               ;[f2b9] Offset, number of reserved tracks
+
+    DB      0                               ;[f2ba] 00
+    DB      0x20
+    DB      0x80
+    DB      0x07                            ;[f2bd]
+    DB      0x03                            ;[f2be]
+    DB      0x82                            ;[f2bf]
+    DB      0x03                            ;[f2c0]
+    DB      0x08                            ;[f2c1]
+    DB      0x00                            ;[f2c2]
+    DB      0x00                            ;[f2c3]
+    DB      0x00                            ;[f2c4]
+    DB      0x03                            ;[f2c5]
+    DB      0x06, 0x01                      ;[f2c6]
+    DB      0x04                            ;[f2c8]
+    DB      0x07                            ;[f2c9]
+    DB      0x02                            ;[f2ca]
+    DB      0x05                            ;[f2cb]
+    DB      0x00                            ;[f2cc]
+    DB      0x00                            ;[f2cd]
+    DB      0x00                            ;[f2ce]
+    DB      0x00                            ;[f2cf]
+    DB      0x00                            ;[f2d0]
+    DB      0x00                            ;[f2d1]
+    DB      0x00                            ;[f2d2]
+    DB      0x00                            ;[f2d3]
+    DB      0x00                            ;[f2d4]
+    DB      0x00                            ;[f2d5]
+    DB      0x00                            ;[f2d6]
+    DB      0x00                            ;[f2d7]
+    DB      0x00                            ;[f2d8]
+    DB      0x00                            ;[f2d9]
+    DB      0x00                            ;[f2da]
+    DB      0x00                            ;[f2db]
+    DB      0x00                            ;[f2dc]
+    DB      0x00                            ;[f2dd]
 
 ; Warm boot - reload command processor
 ; Reloads the command processor and (on some systems) the BDOS as well.

@@ -190,7 +190,7 @@ _main:
 ; Warm boot - reload command processor
 ; Reloads the command processor and (on some systems) the BDOS as well.
 ; How it does this is implementation-dependent; it may use the reserved tracks
-; of a floppy disc or extra memory.
+; of a floppy disk or extra memory.
 wboot:
     ld      sp,$0100                        ;[f2de] initialize stack pointer
     ld      hl,$e000                        ;[f2e1] buffer area: $e000
@@ -453,13 +453,13 @@ home:
     ret                                     ;[f47c]
 
 ; Select the disk drive in register C (0=A:, 1=B: ...). Called with E=0 or 0FFFFh.
-; If bit 0 of E is 0, then the disc is logged in as if new; if the format has
+; If bit 0 of E is 0, then the disk is logged in as if new; if the format has
 ; to be determined from the boot sector, for example, this will be done.
-; If bit 0 if E is 1, then the disc has been logged in before. The disc is not
+; If bit 0 if E is 1, then the disk has been logged in before. The disk is not
 ; accessed; the DPH address (or zero) is returned immediately.
 ; SELDSK returns the address of a Disc Parameter Header in HL. The exact format
 ; of a DPH varies between CP/M versions; note that under CP/M 3, the DPH is in
-; memory bank 0 and probably not visible to programs. If the disc could not be
+; memory bank 0 and probably not visible to programs. If the disk could not be
 ; selected it returns HL=0.
 seldsk:
     ld      hl,$fd25                        ;[f47d] TODO
@@ -512,7 +512,7 @@ setsec:
     ret                                     ;[f4bd]
 
 ; Set DMA address
-; The next disc operation will read its data from (or write its data to) the
+; The next disk operation will read its data from (or write its data to) the
 ; address given in BC.
 setdma:
     ld      h,b                             ;[f4be]
@@ -549,7 +549,7 @@ read:
 ; C=0 - Write can be deferred
 ; C=1 - Write must be immediate
 ; C=2 - Write can be deferred, no pre-read is necessary.
-; Returns A=0 for OK, 1 for unrecoverable error, 2 if disc is readonly, FF if
+; Returns A=0 for OK, 1 for unrecoverable error, 2 if disk is readonly, FF if
 ; media changed.
 write:
     call    $f6b0                           ;[f4df]

@@ -785,28 +785,41 @@ label_f6ad:
     pop     af                              ;[f6ae]
     ret                                     ;[f6af]
 
-    ld      ($fd36),hl                      ;[f6b0]
-    ex      (sp),hl                         ;[f6b3]
-    ld      ($fd38),hl                      ;[f6b4]
-    ld      ($fd3a),sp                      ;[f6b7]
-    ld      sp,$fd7c                        ;[f6bb]
-    push    de                              ;[f6be]
+; Set up a dedicated stack - prologue
+; When this routine is called, sp is moved to $fd7c and all registers are saved
+; there.
+; Old stack pointer and hl values are saved in reserved locations for later
+; restore.
+; Onto the new stack, two addresses are pushed, in following order:
+; - epilogue function ($f6d0)
+; - return address to caller
+; This way, the return from f6b0 is correctly done to caller. And when a
+; "same level" ret is executed from the caller, the epilogue is called instead
+    ld      ($fd36),hl                      ;[f6b0] save hl content
+    ex      (sp),hl                         ;[f6b3] fetch value from stack in hl
+    ld      ($fd38),hl                      ;[f6b4] save the return address to caller
+    ld      ($fd3a),sp                      ;[f6b7] save stack pointer
+    ld      sp,$fd7c                        ;[f6bb] change stack pointer value
+    push    de                              ;[f6be] push there the registers
     push    bc                              ;[f6bf]
     push    ix                              ;[f6c0]
     push    iy                              ;[f6c2]
-    ld      hl,$f6d0                        ;[f6c4]
-    push    hl                              ;[f6c7]
-    ld      hl,($fd38)                      ;[f6c8]
-    push    hl                              ;[f6cb]
-    ld      hl,($fd36)                      ;[f6cc]
+    ld      hl,$f6d0                        ;[f6c4] push epilogue address for
+    push    hl                              ;[f6c7]  later execution
+    ld      hl,($fd38)                      ;[f6c8] push return address to
+    push    hl                              ;[f6cb]  caller
+    ld      hl,($fd36)                      ;[f6cc] restore hl content
     ret                                     ;[f6cf]
 
-    pop     iy                              ;[f6d0]
+; Set up a dedicated stack - epilogue
+; Restore the originary stack, saved in the prologue. Then return
+; to ordinary code execution.
+    pop     iy                              ;[f6d0] Restore the registers
     pop     ix                              ;[f6d2]
     pop     bc                              ;[f6d4]
     pop     de                              ;[f6d5]
-    ld      sp,($fd3a)                      ;[f6d6]
-    pop     hl                              ;[f6da]
+    ld      sp,($fd3a)                      ;[f6d6] move back stack pointer
+    pop     hl                              ;[f6da] restore original value of hl (saved in stack with ex)
     ret                                     ;[f6db]
 
 bank_switch_off:

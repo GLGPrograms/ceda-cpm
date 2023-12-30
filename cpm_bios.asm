@@ -266,34 +266,33 @@ const:
 ; Console input
 ; Wait until the keyboard is ready to provide a character, and return it in A.
 conin:
-    in      a,($b1)                         ;[f372] TODO read from serial???
+    in      a,($b1)                         ;[f372] check if data is available from serial port
     and     $01                             ;[f374]
-    jr      z,label_f37d                    ;[f376] TODO if no data, read from keyboard buffer?
-    in      a,($b0)                         ;[f378]
-    and     $7f                             ;[f37a]
+    jr      z,label_f37d                    ;[f376]
+    in      a,($b0)                         ;[f378] if data is available, fetch and return it
+    and     $7f                             ;[f37a] but make it a valid ASCII character
     ret                                     ;[f37c]
 label_f37d:
-    call    const                           ;[f37d] fetch console status
+    call    const                           ;[f37d] get console status
     or      a                               ;[f380]
-    jr      z,conin                         ;[f381] if no data, busy wait
+    jr      z,conin                         ;[f381] busy wait until valid data
     di                                      ;[f383] begin interrupt guard
-    ld      hl,$fcb2                        ;[f384] TODO fetch from keyboard buffer?
-    ld      a,($fcf3)                       ;[f387]
+    ld      hl,$fcb2                        ;[f384] base pointer of keyboard circular buffer (TODO)
+    ld      a,($fcf3)                       ;[f387] read offset
     ld      e,a                             ;[f38a]
     ld      d,$00                           ;[f38b]
-    add     hl,de                           ;[f38d]
-    ld      a,(hl)                          ;[f38e]
+    add     hl,de                           ;[f38d] compute read pointer
+    ld      a,(hl)                          ;[f38e] get keyboard byte
     push    af                              ;[f38f]
-    ld      a,$00                           ;[f390]
-    ld      ($fcf5),a                       ;[f392]
-    ld      ($fcf6),a                       ;[f395]
-    ld      a,($fcf3)                       ;[f398]
-    inc     a                               ;[f39b]
+    ld      a,$00                           ;[f390] TODO zero something
+    ld      ($fcf5),a                       ;[f392] TODO
+    ld      ($fcf6),a                       ;[f395] TODO
+    ld      a,($fcf3)                       ;[f398] update current read pointer
+    inc     a                               ;[f39b] (increase by one and wrap at 63)
     and     $3f                             ;[f39c]
     ld      ($fcf3),a                       ;[f39e]
-label_f3a1:
-    ld      a,($fcf4)                       ;[f3a1]
-    dec     a                               ;[f3a4]
+    ld      a,($fcf4)                       ;[f3a1] update number of bytes in buffer
+    dec     a                               ;[f3a4] (decrease by one)
     ld      ($fcf4),a                       ;[f3a5]
     ei                                      ;[f3a8] end interrupt guard
     pop     af                              ;[f3a9]
@@ -924,31 +923,33 @@ label_f750:                                 ;       ISR epilogue
     push    af                              ;[f76d]
     res     0,a                             ;[f76e] reset memory bank switching
     out     ($81),a                         ;[f770]
-    in      a,($b3)                         ;[f772] read from SIO port 2 status TODO
-    bit     0,a                             ;[f774]
+    in      a,($b3)                         ;[f772] read from SIO port 2 status
+    bit     0,a                             ;[f774] (data available)
 label_f776:
-    jp      z,$f750                         ;[f776]
-    call    $f77f                           ;[f779]
-    jp      $f750                           ;[f77c]
+    jp      z,$f750                         ;[f776] no data, just ISR epilogue
+    call    $f77f                           ;[f779] get byte and put in software buffer (TODO)
+    jp      $f750                           ;[f77c] ISR eilogue
 
-    ld      hl,$fcf7                        ;[f77f]
-    call    $f88a                           ;[f782] read bytes from SIO
-    ret     z                               ;[f785]
+    ld      hl,$fcf7                        ;[f77f] temporary location for read byte (TODO)
+    call    $f88a                           ;[f782] read from SIO, flags byte is returned
+    ret     z                               ;[f785] flags byte can't be zero, no data to process in this case
     ld      b,a                             ;[f786] put the flags in b
     dec     hl                              ;[f787]
     ld      a,(hl)                          ;[f788]
     ld      c,a                             ;[f789] put the data in c
-    bit     2,b                             ;[f78a]
-    jr      z,label_f797                    ;[f78c] handle ALT
-    bit     3,b                             ;[f78e]
-    jr      z,label_f797                    ;[f790] handle CTRL
-    cp      $4d                             ;[f792]
-    jp      z,$f8a5                         ;[f794] handle BOOT key TODO
+    bit     2,b                             ;[f78a] ALT
+    jr      z,label_f797                    ;[f78c]
+    bit     3,b                             ;[f78e] CTRL
+    jr      z,label_f797                    ;[f790]
+    cp      $4d                             ;[f792] BOOT
+    jp      z,$f8a5                         ;[f794] CTRL + ALT + BOOT (TODO)
+; ALT or CTRL keys are not pressed
 label_f797:
-    cp      $5c                             ;[f797]
-    jr      nz,label_f7af                   ;[f799] handle F15 key TODO
-    bit     3,b                             ;[f79b]
-    jr      z,label_f7af                    ;[f79d] handle CTRL TODO ???
+    cp      $5c                             ;[f797] F15
+    jr      nz,label_f7af                   ;[f799] F15 key (TODO)
+    bit     3,b                             ;[f79b] CTRL
+    jr      z,label_f7af                    ;[f79d]
+; CTRL + key
     ld      a,b                             ;[f79f]
     rrca                                    ;[f7a0]
     rrca                                    ;[f7a1] put C and S flags in MSb
@@ -960,16 +961,17 @@ label_f797:
     ld      ($0003),a                       ;[f7ab]
     ret                                     ;[f7ae]
 
+; handle any printable key press (or CTRL+F15)
 label_f7af:
-    call    $f7b3                           ;[f7af] cd b3 f7
-    ret                                     ;[f7b2] c9
+    call    $f7b3                           ;[f7af]
+    ret                                     ;[f7b2]
 
-    ld      a,($fcf4)                       ;[f7b3] 3a f4 fc
-    cp      $36                             ;[f7b6] fe 36
-    jr      c,label_f7bf                    ;[f7b8] 38 05
-    ld      a,$01                           ;[f7ba] 3e 01
-    out     ($da),a                         ;[f7bc] d3 da
-    ret                                     ;[f7be] c9
+    ld      a,($fcf4)                       ;[f7b3]
+    cp      $36                             ;[f7b6]
+    jr      c,label_f7bf                    ;[f7b8] no more than 54 bytes are
+    ld      a,$01                           ;[f7ba]  accepted in circular buffer.
+    out     ($da),a                         ;[f7bc]  If limit reached, beep and
+    ret                                     ;[f7be]   discard data.
 
 label_f7bf:
     ld      hl,$f826                        ;[f7bf] 21 26 f8
@@ -1115,23 +1117,25 @@ label_f887:
     ret                                     ;[f889] c9
 
     in      a,($b2)                         ;[f88a] read data from keyboard
-    bit     7,a                             ;[f88c]
+    bit     7,a                             ;[f88c] check if data byte or flags byte
     jr      nz,label_f897                   ;[f88e]
-    ld      (hl),a                          ;[f890] save the data from keyboard
+    ld      (hl),a                          ;[f890] data byte: save it in temporary location
     ld      a,$ff                           ;[f891]
-    ld      ($f8ad),a                       ;[f893]
+    ld      ($f8ad),a                       ;[f893] raise data byte received flag
     ret                                     ;[f896]
 
 ; Handle flag byte from keyboard
+; Note: every flags byte must be paired with a data byte. If data byte was not
+; received, just return. Else process data+flags
 label_f897:
-    inc     hl                              ;[f897] save flags from keyboard
-    ld      (hl),a                          ;[f898]
-    ld      a,($f8ad)                       ;[f899]
+    inc     hl                              ;[f897]
+    ld      (hl),a                          ;[f898] store flags in temporary location + 1
+    ld      a,($f8ad)                       ;[f899] check if data was received ($f8ad = 0xff)
     or      a                               ;[f89c]
-    ret     z                               ;[f89d]
+    ret     z                               ;[f89d] if not, return 0
     ld      a,$00                           ;[f89e]
-    ld      ($f8ad),a                       ;[f8a0]
-    ld      a,(hl)                          ;[f8a3]
+    ld      ($f8ad),a                       ;[f8a0] clear data byte received flag
+    ld      a,(hl)                          ;[f8a3] return flags byte
     ret                                     ;[f8a4]
 
     ld      hl,$c015                        ;[f8a5] 21 15 c0

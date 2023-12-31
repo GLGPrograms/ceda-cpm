@@ -943,14 +943,14 @@ label_f776:
     jr      z,label_f797                    ;[f790]
     cp      $4d                             ;[f792] BOOT
     jp      z,$f8a5                         ;[f794] CTRL + ALT + BOOT (TODO)
-; ALT or CTRL keys are not pressed
+; any keypress, except for CTRL + ALT + BOOT
 label_f797:
     cp      $5c                             ;[f797] F15
     jr      nz,label_f7af                   ;[f799] F15 key (TODO)
-    bit     3,b                             ;[f79b] CTRL
+    bit     3,b                             ;[f79b] CTRL + F15
     jr      z,label_f7af                    ;[f79d]
-; CTRL + key
-    ld      a,b                             ;[f79f]
+; CTRL + F15
+    ld      a,b                             ;[f79f] TODO
     rrca                                    ;[f7a0]
     rrca                                    ;[f7a1] put C and S flags in MSb
     and     $c0                             ;[f7a2] and mask them
@@ -961,7 +961,7 @@ label_f797:
     ld      ($0003),a                       ;[f7ab]
     ret                                     ;[f7ae]
 
-; handle any printable key press (or CTRL+F15)
+; any keypress, except CTRL + ALT + BOOT and CTRL + F15
 label_f7af:
     call    $f7b3                           ;[f7af]
     ret                                     ;[f7b2]
@@ -973,148 +973,159 @@ label_f7af:
     out     ($da),a                         ;[f7bc]  If limit reached, beep and
     ret                                     ;[f7be]   discard data.
 
+; TODO keymap conversion and push in buffer?
 label_f7bf:
-    ld      hl,$f826                        ;[f7bf] 21 26 f8
-    ld      a,c                             ;[f7c2] 79
-    cp      (hl)                            ;[f7c3] be
-    jr      z,label_f7cd                    ;[f7c4] 28 07
-    call    $f80c                           ;[f7c6] cd 0c f8
-    jr      nc,label_f7fa                   ;[f7c9] 30 2f
-    jr      label_f7da                      ;[f7cb] 18 0d
+    ld      hl,$f826                        ;[f7bf] TODO keymap table?
+    ld      a,c                             ;[f7c2] take the data byte
+    cp      (hl)                            ;[f7c3]
+    jr      z,label_f7cd                    ;[f7c4]
+    call    $f80c                           ;[f7c6] TODO, return in carry
+    jr      nc,label_f7fa                   ;[f7c9] no match
+    jr      label_f7da                      ;[f7cb] TODO match
+
+; TODO, jump here if data == 0x4b (double zero?)
+; "Double zero" key macro
 label_f7cd:
-    ld      a,($fcb1)                       ;[f7cd] 3a b1 fc
-    ld      e,a                             ;[f7d0] 5f
+    ld      a,($fcb1)                       ;[f7cd] TODO e = number of zeroes the
+    ld      e,a                             ;[f7d0]  "double zero" key must insert
 label_f7d1:
-    ld      c,$30                           ;[f7d1] 0e 30
-    call    $f85c                           ;[f7d3] cd 5c f8
-    dec     e                               ;[f7d6] 1d
-    jr      nz,label_f7d1                   ;[f7d7] 20 f8
-    ret                                     ;[f7d9] c9
+    ld      c,$30                           ;[f7d1]
+    call    $f85c                           ;[f7d3] put "0" in keyboard buffer
+    dec     e                               ;[f7d6]
+    jr      nz,label_f7d1                   ;[f7d7] while e > 0
+    ret                                     ;[f7d9]
 
+; TODO $f80c has returned carry=1
+; TODO more or less like a macro key?
 label_f7da:
-    ld      hl,$0004                        ;[f7da] 21 04 00
-    ld      de,$000e                        ;[f7dd] 11 0e 00
+    ld      hl,$0004                        ;[f7da]
+    ld      de,$000e                        ;[f7dd]
 label_f7e0:
-    dec     a                               ;[f7e0] 3d
-    jr      z,label_f7e6                    ;[f7e1] 28 03
-    add     hl,de                           ;[f7e3] 19
-    jr      label_f7e0                      ;[f7e4] 18 fa
+    dec     a                               ;[f7e0]
+    jr      z,label_f7e6                    ;[f7e1]
+    add     hl,de                           ;[f7e3] hl = 0x0004 + 0x000e * (key data - 1)
+    jr      label_f7e0                      ;[f7e4]
 label_f7e6:
-    ex      de,hl                           ;[f7e6] eb
-    ld      hl,($bff4)                      ;[f7e7] 2a f4 bf
-    add     hl,de                           ;[f7ea] 19
-    ld      e,$09                           ;[f7eb] 1e 09
+    ex      de,hl                           ;[f7e6]
+    ld      hl,($bff4)                      ;[f7e7]
+    add     hl,de                           ;[f7ea] hl = $bff4 + 0x0004 + 0x000e * (key data - 1)
+    ld      e,$09                           ;[f7eb]
 label_f7ed:
-    dec     e                               ;[f7ed] 1d
-    ret     z                               ;[f7ee] c8
-    ld      a,(hl)                          ;[f7ef] 7e
-    cp      $7f                             ;[f7f0] fe 7f
-    ret     z                               ;[f7f2] c8
-    ld      c,a                             ;[f7f3] 4f
-    call    $f85c                           ;[f7f4] cd 5c f8
-    inc     hl                              ;[f7f7] 23
-    jr      label_f7ed                      ;[f7f8] 18 f3
-label_f7fa:
-    call    $f82c                           ;[f7fa] cd 2c f8
-    ld      a,c                             ;[f7fd] 79
-    or      a                               ;[f7fe] b7
-    ret     z                               ;[f7ff] c8
-    call    $f808                           ;[f800] cd 08 f8
-    ret     c                               ;[f803] d8
-    call    $f85c                           ;[f804] cd 5c f8
-    ret                                     ;[f807] c9
+    dec     e                               ;[f7ed]
+    ret     z                               ;[f7ee] while e != 0
+    ld      a,(hl)                          ;[f7ef]
+    cp      $7f                             ;[f7f0]
+    ret     z                               ;[f7f2] return if *hl == 0
+    ld      c,a                             ;[f7f3]
+    call    $f85c                           ;[f7f4] push char c in keyboard buffer
+    inc     hl                              ;[f7f7]
+    jr      label_f7ed                      ;[f7f8]
 
-    ld      hl,($bff6)                      ;[f808] 2a f6 bf
-    jp      (hl)                            ;[f80b] e9
-    ld      a,b                             ;[f80c] 78
-    and     $05                             ;[f80d] e6 05
-    jr      nz,label_f821                   ;[f80f] 20 10
-    ld      a,c                             ;[f811] 79
-    ld      hl,$f826                        ;[f812] 21 26 f8
-    ld      e,$00                           ;[f815] 1e 00
-    ld      d,$06                           ;[f817] 16 06
+; TODO $f80c has returned carry=0
+label_f7fa:
+    call    $f82c                           ;[f7fa] key data to char, return in c
+    ld      a,c                             ;[f7fd]
+    or      a                               ;[f7fe]
+    ret     z                               ;[f7ff] return if is invalid (zero)
+    call    $f808                           ;[f800] TODO
+    ret     c                               ;[f803]
+    call    $f85c                           ;[f804] push char c in keyboard buffer
+    ret                                     ;[f807]
+
+    ld      hl,($bff6)                      ;[f808]
+    jp      (hl)                            ;[f80b]
+
+    ld      a,b                             ;[f80c]
+    and     $05                             ;[f80d] mask shift and alt
+    jr      nz,label_f821                   ;[f80f] if shift or alt are pressed, just return no match
+    ld      a,c                             ;[f811]
+    ld      hl,$f826                        ;[f812] TODO base address of table??
+    ld      e,$00                           ;[f815]
+    ld      d,$06                           ;[f817] table size is 6
 label_f819:
-    cp      (hl)                            ;[f819] be
-    jr      z,label_f823                    ;[f81a] 28 07
-    inc     hl                              ;[f81c] 23
-    inc     e                               ;[f81d] 1c
-    dec     d                               ;[f81e] 15
-    jr      nz,label_f819                   ;[f81f] 20 f8
+    cp      (hl)                            ;[f819]
+    jr      z,label_f823                    ;[f81a] key match
+    inc     hl                              ;[f81c]
+    inc     e                               ;[f81d]
+    dec     d                               ;[f81e]
+    jr      nz,label_f819                   ;[f81f] while d > 0
 label_f821:
-    or      a                               ;[f821] b7
-    ret                                     ;[f822] c9
+    or      a                               ;[f821] clear carry
+    ret                                     ;[f822] no match, return carry = 0
 
 label_f823:
-    ld      a,e                             ;[f823] 7b
-    scf                                     ;[f824] 37
-    ret                                     ;[f825] c9
+    ld      a,e                             ;[f823] return key offset in a
+    scf                                     ;[f824] return carry = 1
+    ret                                     ;[f825]
 
-    ld      c,e                             ;[f826] 4b
-    ld      c,(hl)                          ;[f827] 4e
-    ld      c,a                             ;[f828] 4f
-    ld      d,b                             ;[f829] 50
-    ld      d,c                             ;[f82a] 51
-    ld      d,d                             ;[f82b] 52
-    ld      hl,$0000                        ;[f82c] 21 00 00
-    ld      de,$0080                        ;[f82f] 11 80 00
-    ld      a,b                             ;[f832] 78
-    and     $04                             ;[f833] e6 04
-    jr      nz,label_f83e                   ;[f835] 20 07
-    bit     0,b                             ;[f837] cb 40
-    jr      z,label_f845                    ;[f839] 28 0a
-    add     hl,de                           ;[f83b] 19
-    jr      label_f845                      ;[f83c] 18 07
+    ; TODO macro keys table
+    DB      0x4b                            ;[f826] 00
+    DB      0x4e                            ;[f827] F1
+    DB      0x4f                            ;[f828] F2
+    DB      0x50                            ;[f829] F3
+    DB      0x51                            ;[f82a] F4
+    DB      0x52                            ;[f82b] F5
+
+    ld      hl,$0000                        ;[f82c]
+    ld      de,$0080                        ;[f82f]
+    ld      a,b                             ;[f832]
+    and     $04                             ;[f833] mask ALT
+    jr      nz,label_f83e                   ;[f835]
+    bit     0,b                             ;[f837] check shift
+    jr      z,label_f845                    ;[f839]
+    add     hl,de                           ;[f83b] move table +$80
+    jr      label_f845                      ;[f83c]
 label_f83e:
-    add     hl,de                           ;[f83e] 19
-    add     hl,de                           ;[f83f] 19
-    bit     2,b                             ;[f840] cb 50
-    jr      nz,label_f845                   ;[f842] 20 01
-    add     hl,de                           ;[f844] 19
+    add     hl,de                           ;[f83e]
+    add     hl,de                           ;[f83f] move table +$0100
+    bit     2,b                             ;[f840]
+    jr      nz,label_f845                   ;[f842] always hit? TODO
+    add     hl,de                           ;[f844] move table +$0180
 label_f845:
-    ex      de,hl                           ;[f845] eb
-    ld      hl,($bff2)                      ;[f846] 2a f2 bf
-    add     hl,de                           ;[f849] 19
-    ld      e,c                             ;[f84a] 59
-    ld      d,$00                           ;[f84b] 16 00
-    add     hl,de                           ;[f84d] 19
-    ld      c,(hl)                          ;[f84e] 4e
-    bit     1,b                             ;[f84f] cb 48
-    ret     z                               ;[f851] c8
-    ld      a,c                             ;[f852] 79
-    cp      $61                             ;[f853] fe 61
-    ret     c                               ;[f855] d8
-    cp      $7b                             ;[f856] fe 7b
-    ret     nc                              ;[f858] d0
-    res     5,c                             ;[f859] cb a9
-    ret                                     ;[f85b] c9
+    ex      de,hl                           ;[f845]
+    ld      hl,($bff2)                      ;[f846] keyboard base table TODO
+    add     hl,de                           ;[f849]
+    ld      e,c                             ;[f84a]
+    ld      d,$00                           ;[f84b]
+    add     hl,de                           ;[f84d]
+    ld      c,(hl)                          ;[f84e] load the character mapped to key data
+    bit     1,b                             ;[f84f] caps lock?
+    ret     z                               ;[f851] no, just return
+    ld      a,c                             ;[f852]
+    cp      'a'                             ;[f853]
+    ret     c                               ;[f855] return if less than a
+    cp      $7b                             ;[f856]
+    ret     nc                              ;[f858] return if bigger than DEL
+    res     5,c                             ;[f859] c=upper(c)
+    ret                                     ;[f85b]
 
-    push    hl                              ;[f85c] e5
-    push    de                              ;[f85d] d5
-    ld      a,($fcf2)                       ;[f85e] 3a f2 fc
-    ld      e,a                             ;[f861] 5f
-    ld      d,$00                           ;[f862] 16 00
-    ld      hl,$fcb2                        ;[f864] 21 b2 fc
-    add     hl,de                           ;[f867] 19
-    ld      (hl),c                          ;[f868] 71
-    inc     a                               ;[f869] 3c
-    and     $3f                             ;[f86a] e6 3f
-    ld      ($fcf2),a                       ;[f86c] 32 f2 fc
-    ld      a,($fcf4)                       ;[f86f] 3a f4 fc
-    inc     a                               ;[f872] 3c
-    and     $3f                             ;[f873] e6 3f
-    ld      ($fcf4),a                       ;[f875] 32 f4 fc
-    ld      a,c                             ;[f878] 79
-    cp      $03                             ;[f879] fe 03
-    jr      nz,label_f880                   ;[f87b] 20 03
-    ld      ($fcf5),a                       ;[f87d] 32 f5 fc
+    push    hl                              ;[f85c]
+    push    de                              ;[f85d]
+    ld      a,($fcf2)                       ;[f85e] load writing offset of
+    ld      e,a                             ;[f861]  keyboard buffer, then
+    ld      d,$00                           ;[f862]  add to base address
+    ld      hl,$fcb2                        ;[f864]
+    add     hl,de                           ;[f867]
+    ld      (hl),c                          ;[f868] push char in buffer
+    inc     a                               ;[f869] increment writing pointer
+    and     $3f                             ;[f86a]  and wrap to 63
+    ld      ($fcf2),a                       ;[f86c]
+    ld      a,($fcf4)                       ;[f86f] update number of elements
+    inc     a                               ;[f872]  in buffer
+    and     $3f                             ;[f873]
+    ld      ($fcf4),a                       ;[f875]
+    ld      a,c                             ;[f878]
+    cp      $03                             ;[f879]
+    jr      nz,label_f880                   ;[f87b]
+    ld      ($fcf5),a                       ;[f87d] TODO ETX flag?
 label_f880:
-    cp      $13                             ;[f880] fe 13
-    jr      nz,label_f887                   ;[f882] 20 03
-    ld      ($fcf6),a                       ;[f884] 32 f6 fc
+    cp      $13                             ;[f880]
+    jr      nz,label_f887                   ;[f882]
+    ld      ($fcf6),a                       ;[f884] TODO DC3 flag?
 label_f887:
-    pop     de                              ;[f887] d1
-    pop     hl                              ;[f888] e1
-    ret                                     ;[f889] c9
+    pop     de                              ;[f887]
+    pop     hl                              ;[f888]
+    ret                                     ;[f889]
 
     in      a,($b2)                         ;[f88a] read data from keyboard
     bit     7,a                             ;[f88c] check if data byte or flags byte
@@ -1138,12 +1149,12 @@ label_f897:
     ld      a,(hl)                          ;[f8a3] return flags byte
     ret                                     ;[f8a4]
 
-    ld      hl,$c015                        ;[f8a5] 21 15 c0
-    push    hl                              ;[f8a8] e5
-    out     ($d8),a                         ;[f8a9] d3 d8
-    reti                                    ;[f8ab] ed 4d
+    ld      hl,$c015                        ;[f8a5] (reset SIO + reset vector) address
+    push    hl                              ;[f8a8] push onto stack as return address
+    out     ($d8),a                         ;[f8a9] CTC trigger (TODO)
+    reti                                    ;[f8ab]
 
-    nop                                     ;[f8ad] 00
+    DB      0x00                            ;[f8ad] variable, data received flag
 
 ; Cold start routine
 ; This function is completely implementation-dependent and should never be

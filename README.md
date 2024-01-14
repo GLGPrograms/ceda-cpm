@@ -2,6 +2,7 @@
 
 This repository was created to analyse the floppy image of the Sanco 8001 CP/M.
 The original source code is not available, so we are going to disassemble it.
+The image, copied from a physical disk using a gotek, was provided by "pconseil" on [archive.org](https://archive.org/details/sanco-8003-cpm-2.2fr.dsqd).
 
 ![Splash screen of the original Sanco CP/M](./img/sanco-cpm-splash.jpg)
 

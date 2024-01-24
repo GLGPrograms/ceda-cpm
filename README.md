@@ -37,6 +37,46 @@ To check the asm file consistency, run
 
     make test
 
+### Handle CP/M file system
+
+The CP/M file system onto the `SANCO8003_CPM_2.2fr.bin` image may be accessed using the [cpmtools](http://www.moria.de/~michael/cpmtools/).
+An appropriate disk definition file is needed (`diskdefs`), which is included in this repository.
+
+#### Print the content of the disk
+
+```bash
+$ cpmls -f sanco SANCO8003_CPM_2.2fr.bin
+0:
+asm.com
+config80.com
+copy8003.com
+# ...
+submit.com
+term80.com
+trx62.com
+xsub.com
+```
+
+#### Extract a file from the image
+
+A single file
+
+```bash
+$ cpmcp -f sanco SANCO8003_CPM_2.2fr.bin "0:ASM.COM" .
+```
+
+Multiple files
+
+```bash
+$ cpmcp -f sanco SANCO8003_CPM_2.2fr.bin "0:*" disk/
+```
+
+#### Add a file to the image
+
+```bash
+$ cpmcp -f sanco SANCO8003_CPM_2.2fr.bin test.bin "0:TEST.COM"
+```
+
 ## Other contributions
 
 - [RetroNewbie/Sanco_8000](https://github.com/RetroNewbie/Sanco_8000/tree/main/CP-M), some disassemblies of the software inside in this floppy.

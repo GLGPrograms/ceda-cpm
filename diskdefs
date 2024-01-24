@@ -1,0 +1,47 @@
+# Image exported from HxCFloppyEmulator with 9216 bytes as boot area (1st track
+# head 0 and 1, with different format size).
+diskdef sanco
+  # Disk properties
+  seclen 1024
+  # 79 tracks double sided (1st track excluded)
+  tracks 158
+  # 5 sectors per track
+  sectrk 5
+  # Blocksize from CPM-BIOS
+  blocksize 4096
+  # Maxdir from CPM-BIOS
+  maxdir 128
+  # Why skew 2? I don't know
+  skew 2
+  # No boot track
+  boottrk 0
+  # Skip boot area
+  offset 9216
+  os 2.2
+end
+
+# Image exported as before, but without boot area
+diskdef sanco-no-boot
+  seclen 1024
+  tracks 158
+  sectrk 5
+  blocksize 4096
+  maxdir 128
+  skew 2
+  boottrk 0
+  bootsec 0
+  os 2.2
+end
+
+# Image exported as before, but with tweaked boot area: added +1024bytes as
+# padding to make first track like the others (256 * 16 + 1024 = 1024 * 5)
+diskdef sanco-uniformed
+  seclen 1024
+  tracks 160
+  sectrk 5
+  blocksize 4096
+  maxdir 128
+  skew 2
+  boottrk 2
+  os 2.2
+end

@@ -31,7 +31,9 @@ _main:
     jp      $f4c4                           ;[f230] SECTRAN
 
 ; TODO
-    DB      "0037"                          ;[f231]
+; This is some kind of control code used to know which CP/M BIOS is running
+; (i.e. which machine revision hides under the operating system?)
+    DB      "0037"                          ;[f233]
 
 ; CP/M Disc Parameter Header
 ; https://www.seasip.info/Cpm/dph.html

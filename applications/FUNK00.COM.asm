@@ -128,7 +128,8 @@ L01d2:
                     ld      e,a                             ;[01d8] put the first data byte in e register
 
                     ; The "read status - read data" code is repeated as before.
-                    ; this second read is discarded. Why? don't know
+                    ; Data is read twice, first byte is scancode, which is kept.
+                    ; Second byte is flags, which is discarded.
                     ld      a,(IO_KBDST)                    ;[01d9]
                     ld      c,a                             ;[01dc]
                     cp      $b3                             ;[01dd]
@@ -148,7 +149,7 @@ label_01ef:
                     in      a,(c)                           ;[01f3]
                     ei                                      ;[01f5] End of direct I/O access
 
-                    ld      a,e                             ;[01f6] Discard last keypress, take first one
+                    ld      a,e                             ;[01f6] Take scancode
                     cp      $39                             ;[01f7] This is the spacebar scancode
                     jr      z,label_0200                    ;[01f9]  when spacebar is pressed, break cycle
                     call    $0583                           ;[01fb] TODO: remap scancode
@@ -210,7 +211,7 @@ label_025e:
                     ld      c,a                             ;[0261]
                     in      a,(c)                           ;[0262]
                     ei                                      ;[0264]
-                    ld      a,e                             ;[0265] Discard last keypress, take first one
+                    ld      a,e                             ;[0265] Take scancode
                     cp      $39                             ;[0266] This is the spacebar scancode
                     jr      z,label_026f                    ;[0268]  when spacebar is pressed, break cycle
                     call    $0583                           ;[026a] TODO: remap scancode
@@ -272,7 +273,7 @@ label_02cd:
                     ld      c,a                             ;[02d0]
                     in      a,(c)                           ;[02d1]
                     ei                                      ;[02d3]
-                    ld      a,e                             ;[02d4] Discard last keypress, take first one
+                    ld      a,e                             ;[02d4] Take scancode
                     cp      $39                             ;[02d5] This is the spacebar scancode
                     jr      z,label_02de                    ;[02d7]  when spacebar is pressed, break cycle
                     call    $0583                           ;[02d9] TODO: remap scancode

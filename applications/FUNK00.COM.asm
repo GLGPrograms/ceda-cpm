@@ -23,11 +23,11 @@ SLF_KEYMAP_OFFSET: = $0080
                     ld      a,(hl)                          ;[010a] On our Sanco (CEDA) this is "0" ($30)
                     cp      $30                             ;[010b] check if this Sanco is "model 0"
                     jr      nz,model1                       ;[010d]
-                    ld      a,$b3                           ;[010f] Save keyboard IO address to
-                    ld      (IO_KBDST),a                    ;[0111]  a certain location in ram (TODO)
+                    ld      a,$b3                           ;[010f] Save keyboard IO address in ram
+                    ld      (IO_KBDST),a                    ;[0111]  This is for serial status register
                     dec     a                               ;[0114]
-                    ld      (IO_KBDCH),a                    ;[0115] Store this value in ram
-                    jr      label_0135                      ;[0118]
+                    ld      (IO_KBDCH),a                    ;[0115] The consecutive address is for data register
+                    jr      label_0135                      ;[0118]  from keyboard serial interface
 model1:
                     cp      $31                             ;[011a] check if this Sanco is "model 1"
                     jr      nz,incompatible                 ;[011c]
@@ -51,22 +51,22 @@ label_0135:
                     call    GUARD_SYSCALL                   ;[0142]
                     call    CIN_FILENAME                    ;[0145] Get input filename
                     ld      de,$0080                        ;[0148]
-                    ld      c,$1a                           ;[014b] TODO F_DMAOFF
+                    ld      c,$1a                           ;[014b] F_DMAOFF
                     call    GUARD_SYSCALL                   ;[014d]
                     ld      de,fd                           ;[0150] file descriptor address
-                    ld      c,$0f                           ;[0153] TODO F_OPEN
+                    ld      c,$0f                           ;[0153] F_OPEN(fd)
                     call    GUARD_SYSCALL                   ;[0155] F_OPEN returns $FF for error
                     inc     a                               ;[0158] increment to get $00 on error
                     jp      z,err_nofile                    ;[0159] TODO file not found error?
-                    ld      hl,$0ab4                        ;[015c] TODO this is the base ptr to special keys string? no, because is used as read buffer
+                    ld      hl,slfbuff                      ;[015c] TODO this is the base ptr to special keys string? no, because is used as read buffer
                     ld      (dmaoff_p),hl                   ;[015f]
                     ld      b,$00                           ;[0162]
 fread_all:
                     ld      de,(dmaoff_p)                   ;[0164]
-                    ld      c,$1a                           ;[0168] TODO F_DMAOFF
+                    ld      c,$1a                           ;[0168] F_DMAOFF
                     call    GUARD_SYSCALL                   ;[016a]
                     ld      de,fd                           ;[016d] file descriptor address
-                    ld      c,$14                           ;[0170] TODO F_READ
+                    ld      c,$14                           ;[0170] F_READ(fd)
                     call    GUARD_SYSCALL                   ;[0172]
                     or      a                               ;[0175] F_READ returns $00 if ok
                     jr      nz,fread_eof                    ;[0176] TODO any error is considered as EOF?
@@ -78,7 +78,7 @@ fread_all:
                     jr      fread_all                       ;[0183]
 fread_eof:
                     ld      a,b                             ;[0185]
-                    ld      ($0a81),a                       ;[0186] preserve the number of read records from the SLF file
+                    ld      (slf_block_size),a              ;[0186] preserve the number of read records from the SLF file
                     ld      de,fd                           ;[0189]
                     ld      c,$10                           ;[018c] F_CLOSE(fd)
                     call    GUARD_SYSCALL                   ;[018e]
@@ -93,7 +93,7 @@ fread_eof:
                     add     hl,de                           ;[01a7]
                     ld      (layout_p),hl                   ;[01a8]
                     ld      a,$00                           ;[01ab]
-                    ld      ($0a80),a                       ;[01ad]
+                    ld      (isnotplain),a                  ;[01ad]
                     call    DISPLAYKBD                      ;[01b0] TODO print keymap on screen
 remap_normal_loop:
                     ld      de,STR_PROMPT                   ;[01b3]
@@ -152,7 +152,7 @@ label_01ef:
                     ld      a,e                             ;[01f6] Take scancode
                     cp      $39                             ;[01f7] This is the spacebar scancode
                     jr      z,label_0200                    ;[01f9]  when spacebar is pressed, break cycle
-                    call    $0583                           ;[01fb] TODO: remap scancode
+                    call    doremap                         ;[01fb] TODO: remap scancode
                     jr      remap_normal_loop               ;[01fe] Repeat keboard reading
 label_0200:
                     ld      hl,(layout_p)                   ;[0200] Update keymap pointer to the next block
@@ -166,7 +166,7 @@ label_0200:
                     ld      c,$09                           ;[0215] C_WRITESTR
                     call    GUARD_SYSCALL                   ;[0217]
                     ld      a,$01                           ;[021a]
-                    ld      ($0a80),a                       ;[021c]
+                    ld      (isnotplain),a                  ;[021c]
                     call    DISPLAYKBD                      ;[021f]
 remap_shift_loop:
                     ld      de,STR_PROMPT                   ;[0222]
@@ -214,7 +214,7 @@ label_025e:
                     ld      a,e                             ;[0265] Take scancode
                     cp      $39                             ;[0266] This is the spacebar scancode
                     jr      z,label_026f                    ;[0268]  when spacebar is pressed, break cycle
-                    call    $0583                           ;[026a] TODO: remap scancode
+                    call    doremap                         ;[026a] TODO: remap scancode
                     jr      remap_shift_loop                ;[026d] Repeat keboard reading
 label_026f:
                     ld      hl,(layout_p)                   ;[026f]
@@ -228,7 +228,7 @@ label_026f:
                     ld      c,$09                           ;[0284]
                     call    GUARD_SYSCALL                   ;[0286]
                     ld      a,$01                           ;[0289]
-                    ld      ($0a80),a                       ;[028b]
+                    ld      (isnotplain),a                  ;[028b]
                     call    DISPLAYKBD                      ;[028e]
 remap_ctrl_loop:
                     ld      de,STR_PROMPT                   ;[0291]
@@ -276,7 +276,7 @@ label_02cd:
                     ld      a,e                             ;[02d4] Take scancode
                     cp      $39                             ;[02d5] This is the spacebar scancode
                     jr      z,label_02de                    ;[02d7]  when spacebar is pressed, break cycle
-                    call    $0583                           ;[02d9] TODO: remap scancode
+                    call    doremap                         ;[02d9] TODO: remap scancode
                     jr      remap_ctrl_loop                 ;[02dc] Repeat keboard reading
                     ; Now the changed SLF file is saved, first in a temporary
                     ; location with SLF*.$$$ extension. Then, old SLF*.COM file
@@ -297,7 +297,7 @@ label_02de:
                     jp      z,error_epilogue                ;[02fd]
                     ld      hl,slfbuff                      ;[0300] Update the "dma offset" pointer to the buffer area
                     ld      (dmaoff_p),hl                   ;[0303]   where the file content is located
-                    ld      a,($0a81)                       ;[0306] TODO - number of chunks to be written?
+                    ld      a,(slf_block_size)              ;[0306] TODO - number of chunks to be written?
                     ld      b,a                             ;[0309]
 L030a:
                     ld      de,(dmaoff_p)                   ;[030a]
@@ -356,7 +356,7 @@ label_037b:
                     djnz    label_0364                      ;[037d]  decrement buffer ctr and loop until > 0
 label_037f:
                     ld      hl,STR_FILENAME                 ;[037f] The provided filename must start with "SLF"
-                    ld      de,$06fe                        ;[0382]  Sanco Layout File? TODO
+                    ld      de,fd+1                         ;[0382]  Sanco Layout File? TODO
                     ld      b,$03                           ;[0385]
 L0387:
                     ld      a,(de)                          ;[0387] Compare the SLF string with the
@@ -380,76 +380,76 @@ GUARD_SYSCALL:
 
 ;; TODO i think display the keyboard layout
 DISPLAYKBD:
-                    ld      de,$097d                        ;[039b]
+                    ld      de,STR_SYM                      ;[039b]
                     ld      c,$09                           ;[039e] C_WRITESTR
                     call    GUARD_SYSCALL                   ;[03a0]
                     ld      b,$10                           ;[03a3]
                     inc     hl                              ;[03a5]
                     push    hl                              ;[03a6]
                     call    HEXANDSPACE                     ;[03a7]
-                    ld      de,$0982                        ;[03aa]
+                    ld      de,STR_SYM+5                    ;[03aa]
                     ld      c,$09                           ;[03ad]
                     call    GUARD_SYSCALL                   ;[03af]
                     ld      b,$10                           ;[03b2]
                     pop     hl                              ;[03b4]
-                    call    $04d2                           ;[03b5]
-                    ld      de,$0987                        ;[03b8]
+                    call    L04D2                           ;[03b5]
+                    ld      de,STR_SYM+10                   ;[03b8]
                     ld      c,$09                           ;[03bb]
                     call    GUARD_SYSCALL                   ;[03bd]
                     ld      b,$0f                           ;[03c0]
                     push    hl                              ;[03c2]
                     call    HEXANDSPACE                     ;[03c3]
-                    ld      de,$098c                        ;[03c6]
+                    ld      de,STR_SYM+15                   ;[03c6]
                     ld      c,$09                           ;[03c9]
                     call    GUARD_SYSCALL                   ;[03cb]
                     ld      b,$0f                           ;[03ce]
                     pop     hl                              ;[03d0]
-                    call    $04d2                           ;[03d1]
-                    ld      de,$0991                        ;[03d4]
+                    call    L04D2                           ;[03d1]
+                    ld      de,STR_SYM+20                   ;[03d4]
                     ld      c,$09                           ;[03d7]
                     call    GUARD_SYSCALL                   ;[03d9]
                     ld      b,$0d                           ;[03dc]
                     push    hl                              ;[03de]
                     call    HEXANDSPACE                     ;[03df]
-                    ld      de,$0996                        ;[03e2]
+                    ld      de,STR_SYM+25                   ;[03e2]
                     ld      c,$09                           ;[03e5]
                     call    GUARD_SYSCALL                   ;[03e7]
                     ld      b,$0d                           ;[03ea]
                     pop     hl                              ;[03ec]
-                    call    $04d2                           ;[03ed]
-                    ld      de,$099b                        ;[03f0]
+                    call    L04D2                           ;[03ed]
+                    ld      de,STR_SYM+30                   ;[03f0]
                     ld      c,$09                           ;[03f3]
                     call    GUARD_SYSCALL                   ;[03f5]
                     ld      b,$0c                           ;[03f8]
                     push    hl                              ;[03fa]
                     call    HEXANDSPACE                     ;[03fb]
-                    ld      de,$09a0                        ;[03fe]
+                    ld      de,STR_SYM+35                   ;[03fe]
                     ld      c,$09                           ;[0401]
                     call    GUARD_SYSCALL                   ;[0403]
                     ld      b,$0c                           ;[0406]
                     pop     hl                              ;[0408]
-                    call    $04d2                           ;[0409]
-                    ld      de,$09a5                        ;[040c]
+                    call    L04D2                           ;[0409]
+                    ld      de,STR_SYM+40                   ;[040c]
                     ld      c,$09                           ;[040f]
                     call    GUARD_SYSCALL                   ;[0411]
                     ld      b,$01                           ;[0414]
                     call    HEXANDSPACE                     ;[0416]
-                    ld      de,$09aa                        ;[0419]
+                    ld      de,STR_SYM+45                   ;[0419]
                     ld      c,$09                           ;[041c]
                     call    GUARD_SYSCALL                   ;[041e]
-                    ld      de,$09c4                        ;[0421]
+                    ld      de,STR_SYM+71                   ;[0421]
                     ld      c,$09                           ;[0424]
                     call    GUARD_SYSCALL                   ;[0426]
                     ld      b,$04                           ;[0429]
                     push    hl                              ;[042b]
                     call    HEXANDSPACE                     ;[042c]
-                    ld      de,$09c9                        ;[042f]
+                    ld      de,STR_SYM+76                   ;[042f]
                     ld      c,$09                           ;[0432]
                     call    GUARD_SYSCALL                   ;[0434]
                     ld      b,$04                           ;[0437]
                     pop     hl                              ;[0439]
-                    call    $04d2                           ;[043a]
-                    ld      de,$09ce                        ;[043d]
+                    call    L04D2                           ;[043a]
+                    ld      de,STR_SYM+81                   ;[043d]
                     ld      c,$09                           ;[0440]
                     call    GUARD_SYSCALL                   ;[0442]
                     ld      b,$04                           ;[0445]
@@ -457,11 +457,11 @@ DISPLAYKBD:
                     call    HEXANDSPACE                     ;[0448]
                     ld      b,$04                           ;[044b]
                     pop     hl                              ;[044d]
-                    ld      de,$09d3                        ;[044e]
+                    ld      de,STR_SYM+86                   ;[044e]
                     ld      c,$09                           ;[0451]
                     call    GUARD_SYSCALL                   ;[0453]
-                    call    $04d2                           ;[0456]
-                    ld      de,$09d8                        ;[0459]
+                    call    L04D2                           ;[0456]
+                    ld      de,STR_SYM+91                   ;[0459]
                     ld      c,$09                           ;[045c]
                     call    GUARD_SYSCALL                   ;[045e]
                     ld      b,$04                           ;[0461]
@@ -469,11 +469,11 @@ DISPLAYKBD:
                     call    HEXANDSPACE                     ;[0464]
                     ld      b,$04                           ;[0467]
                     pop     hl                              ;[0469]
-                    ld      de,$09dd                        ;[046a]
+                    ld      de,STR_SYM+96                   ;[046a]
                     ld      c,$09                           ;[046d]
                     call    GUARD_SYSCALL                   ;[046f]
-                    call    $04d2                           ;[0472]
-                    ld      de,$09e2                        ;[0475]
+                    call    L04D2                           ;[0472]
+                    ld      de,STR_SYM+101                  ;[0475]
                     ld      c,$09                           ;[0478]
                     call    GUARD_SYSCALL                   ;[047a]
                     ld      b,$03                           ;[047d]
@@ -481,11 +481,11 @@ DISPLAYKBD:
                     call    HEXANDSPACE                     ;[0480]
                     ld      b,$03                           ;[0483]
                     pop     hl                              ;[0485]
-                    ld      de,$09e7                        ;[0486]
+                    ld      de,STR_SYM+106                  ;[0486]
                     ld      c,$09                           ;[0489]
                     call    GUARD_SYSCALL                   ;[048b]
-                    call    $04d2                           ;[048e]
-                    ld      de,$09ec                        ;[0491]
+                    call    L04D2                           ;[048e]
+                    ld      de,STR_SYM+111                  ;[0491]
                     ld      c,$09                           ;[0494]
                     call    GUARD_SYSCALL                   ;[0496]
                     ld      b,$04                           ;[0499]
@@ -493,12 +493,12 @@ DISPLAYKBD:
                     call    HEXANDSPACE                     ;[049c]
                     ld      b,$04                           ;[049f]
                     pop     hl                              ;[04a1]
-                    ld      de,$09f1                        ;[04a2]
+                    ld      de,STR_SYM+116                  ;[04a2]
                     ld      c,$09                           ;[04a5]
                     call    GUARD_SYSCALL                   ;[04a7]
-                    call    $04d2                           ;[04aa]
+                    call    L04D2                           ;[04aa]
                     inc     hl                              ;[04ad]
-                    ld      de,$09f6                        ;[04ae]
+                    ld      de,STR_SYM+121                  ;[04ae]
                     ld      c,$09                           ;[04b1]
                     call    GUARD_SYSCALL                   ;[04b3]
                     ld      b,$0f                           ;[04b6]
@@ -518,7 +518,7 @@ HEXANDSPACE:
                     djnz    HEXANDSPACE                     ;[04cf] while b > 0
                     ret                                     ;[04d1]
 
-L04d2:
+L04D2:
                     ld      a,(hl)                          ;[04d2]
                     cp      $20                             ;[04d3]
                     call    c,PRSPECIALSWITCH               ;[04d5]
@@ -540,44 +540,44 @@ L04d2:
                     call    GUARD_SYSCALL                   ;[04f8]
 label_04fb:
                     inc     hl                              ;[04fb]
-                    djnz    L04d2                           ;[04fc]
+                    djnz    L04D2                           ;[04fc]
                     ret                                     ;[04fe]
 
                     ; TODO this routine seems to print the special character
                     ; strings, passed in a
 PRSPECIALSWITCH:
                     cp      $1b                             ;[04ff]
-                    ld      de,$0a51                        ;[0501]
+                    ld      de,STR_SPECIAL+16               ;[0501]
                     jp      z,PRSPECIALSTR                  ;[0504]
                     cp      $7f                             ;[0507]
-                    ld      de,$0a4d                        ;[0509]
+                    ld      de,STR_SPECIAL+12               ;[0509]
                     jp      z,PRSPECIALSTR                  ;[050c]
                     cp      $09                             ;[050f]
-                    ld      de,$0a55                        ;[0511]
+                    ld      de,STR_SPECIAL+20               ;[0511]
                     jp      z,PRSPECIALSTR                  ;[0514]
                     cp      $03                             ;[0517]
-                    ld      de,$0a59                        ;[0519]
+                    ld      de,STR_SPECIAL+24               ;[0519]
                     jp      z,PRSPECIALSTR                  ;[051c]
                     cp      $0d                             ;[051f]
-                    ld      de,$0a5d                        ;[0521]
+                    ld      de,STR_SPECIAL+28               ;[0521]
                     jp      z,PRSPECIALSTR                  ;[0524]
                     cp      $18                             ;[0527]
-                    ld      de,$0a69                        ;[0529]
+                    ld      de,STR_SPECIAL+40               ;[0529]
                     jp      z,PRSPECIALSTR                  ;[052c]
                     cp      $0a                             ;[052f]
-                    ld      de,$0a61                        ;[0531]
+                    ld      de,STR_SPECIAL+32               ;[0531]
                     jp      z,PRSPECIALSTR                  ;[0534]
                     cp      $15                             ;[0537]
-                    ld      de,$0a65                        ;[0539]
+                    ld      de,STR_SPECIAL+36               ;[0539]
                     jp      z,PRSPECIALSTR                  ;[053c]
                     cp      $00                             ;[053f]
-                    ld      de,$0a41                        ;[0541]
+                    ld      de,STR_SPECIAL                  ;[0541]
                     jp      z,PRSPECIALSTR                  ;[0544]
                     cp      $07                             ;[0547]
-                    ld      de,$0a45                        ;[0549]
+                    ld      de,STR_SPECIAL+4                ;[0549]
                     jp      z,PRSPECIALSTR                  ;[054c]
                     cp      $1a                             ;[054f]
-                    ld      de,$0a49                        ;[0551]
+                    ld      de,STR_SPECIAL+8                ;[0551]
                     jp      z,PRSPECIALSTR                  ;[0554]
                     cp      $0b                             ;[0557]
                     jr      nz,label_055d                   ;[0559]
@@ -609,20 +609,21 @@ PRSPECIALSTR:
                     xor     a                               ;[0581]
                     ret                                     ;[0582]
 
+doremap:
                     ld      hl,(layout_p)                   ;[0583]
-                    ld      c,a                             ;[0586]
-                    ld      b,$00                           ;[0587]
-                    add     hl,bc                           ;[0589]
-                    ld      a,(hl)                          ;[058a]
+                    ld      c,a                             ;[0586] The scancode is in bc, with most significant
+                    ld      b,$00                           ;[0587]  bits zeroed
+                    add     hl,bc                           ;[0589] Compute the key displacement in keymap table
+                    ld      a,(hl)                          ;[058a] load the char currently mapped to the scancode
                     ld      c,a                             ;[058b]
-                    ld      a,($0a80)                       ;[058c]
+                    ld      a,(isnotplain)                  ;[058c] TODO this is 0 or 1?
                     cp      $01                             ;[058f]
                     ld      a,c                             ;[0591]
-                    jp      z,L0628                         ;[0592]
+                    jp      z,L0628                         ;[0592] jump if CTRL or SHIFT?
                     cp      $80                             ;[0595]
-                    jp      c,L0628                         ;[0597]
+                    jp      c,L0628                         ;[0597] jump if a < $80
                     cp      $85                             ;[059a]
-                    jp      nc,L0628                        ;[059c]
+                    jp      nc,L0628                        ;[059c] jump if a >= $85
                     ld      hl,slfbuff                      ;[059f]
                     ld      de,$1f80                        ;[05a2]
                     add     hl,de                           ;[05a5]
@@ -635,7 +636,7 @@ label_05ab:
                     jr      label_05ab                      ;[05af]
 
 label_05b1:
-                    ld      ($0a7b),hl                      ;[05b1]
+                    ld      (charmap_p),hl                  ;[05b1]
 label_05b4:
                     ld      a,(hl)                          ;[05b4] TODO loop that prints *hl++
                     cp      $0d                             ;[05b5]
@@ -651,30 +652,30 @@ label_05bb:
                     jr      label_05b4                      ;[05c6]
 
 label_05c8:
-                    ld      hl,($0a7b)                      ;[05c8]
+                    ld      hl,(charmap_p)                  ;[05c8]
                     ld      b,$04                           ;[05cb]
 L05cd:
                     ld      a,(hl)                          ;[05cd]
                     ld      e,a                             ;[05ce]
-                    ld      c,$02                           ;[05cf]
+                    ld      c,$02                           ;[05cf] C_WRITE
                     call    GUARD_SYSCALL                   ;[05d1]
                     inc     hl                              ;[05d4]
                     djnz    L05cd                           ;[05d5]
                     ld      b,$08                           ;[05d7]
                     xor     a                               ;[05d9]
-                    ld      ($0a7f),a                       ;[05da]
+                    ld      (newchar),a                     ;[05da]
 label_05dd:
                     ld      c,$06                           ;[05dd] TODO C_RAWIO
                     ld      e,$ff                           ;[05df] TODO Return a character without echoing if one is waiting; zero if none is available. In MP/M 1, this works like E=0FDh below and waits for a character.
                     call    GUARD_SYSCALL                   ;[05e1]
                     or      a                               ;[05e4] zero = no char available
                     jr      z,label_05dd                    ;[05e5]
-                    cp      $5c                             ;[05e7] TODO \
+                    cp      $5c                             ;[05e7] TODO "\"
                     jr      z,label_0622                    ;[05e9]
                     cp      $0d                             ;[05eb] TODO \n
                     jr      nz,label_05fd                   ;[05ed]
                     ld      c,a                             ;[05ef]
-                    ld      a,($0a7f)                       ;[05f0]
+                    ld      a,(newchar)                     ;[05f0]
                     or      a                               ;[05f3]
                     jp      z,L0636                         ;[05f4]
                     ld      (hl),c                          ;[05f7]
@@ -699,7 +700,7 @@ label_060b:
                     jr      nc,label_0615                   ;[0611]
                     sub     $20                             ;[0613]
 label_0615:
-                    ld      ($0a7f),a                       ;[0615]
+                    ld      (newchar),a                     ;[0615]
                     ld      (hl),a                          ;[0618]
                     inc     hl                              ;[0619]
                     ld      e,a                             ;[061a]
@@ -726,63 +727,67 @@ L0636:
                     jp      DISPLAYKBD                      ;[0641]
 
 L0644:
-                    ld      de,$0a79                        ;[0644]
+                    ld      de,newcharbuf                   ;[0644]
                     ld      b,$02                           ;[0647]
 label_0649:
-                    ld      c,$01                           ;[0649]
+                    ld      c,$01                           ;[0649] C_READ
                     call    GUARD_SYSCALL                   ;[064b]
                     cp      $0d                             ;[064e]
-                    ret     z                               ;[0650]
-                    cp      $08                             ;[0651]
+                    ret     z                               ;[0650] \n, terminate loop
+                    cp      $08                             ;[0651] backspace...
                     jr      nz,label_0659                   ;[0653]
-                    dec     de                              ;[0655]
+                    dec     de                              ;[0655] delete stored char
                     inc     b                               ;[0656]
-                    jr      label_0649                      ;[0657]
+                    jr      label_0649                      ;[0657] continue loop
 label_0659:
                     cp      $30                             ;[0659]
-                    jr      c,label_0694                    ;[065b]
+                    jr      c,label_0694                    ;[065b] jump if a < "0"
                     cp      $67                             ;[065d]
-                    jr      nc,label_0694                   ;[065f]
+                    jr      nc,label_0694                   ;[065f] jump if a >= 'g'
                     cp      $61                             ;[0661]
-                    jr      nc,label_066b                   ;[0663]
+                    jr      nc,label_066b                   ;[0663] jump if a >= 'a' (and < 'g')
                     cp      $47                             ;[0665]
-                    jr      nc,label_0694                   ;[0667]
+                    jr      nc,label_0694                   ;[0667] jump if a >= 'G'
                     jr      label_066d                      ;[0669]
 label_066b:
-                    add     $20                             ;[066b]
+                    ; I think there is an error here: the add is applied to
+                    ; lowercase chars only (i.e. $61 + $20 = $81 = ???).
+                    ; But it should be applied to uppercase
+                    ; (i.e. 'A' + $20 = $41 + $20 = $61 = 'a')
+                    add     $20                             ;[066b] TODO
 label_066d:
-                    ld      (de),a                          ;[066d]
+                    ld      (de),a                          ;[066d] TODO what was in DE?
                     inc     de                              ;[066e]
-                    djnz    label_0649                      ;[066f]
-                    ld      de,$0a79                        ;[0671]
+                    djnz    label_0649                      ;[066f] loop until b>0
+                    ld      de,newcharbuf                   ;[0671]
                     ld      a,(de)                          ;[0674]
                     cp      $41                             ;[0675]
-                    jr      c,label_067b                    ;[0677]
+                    jr      c,label_067b                    ;[0677] jump if a < 'A'
                     sub     $07                             ;[0679]
 label_067b:
                     sub     $30                             ;[067b]
                     and     $0f                             ;[067d]
-                    rra                                     ;[067f]
-                    rra                                     ;[0680]
-                    rra                                     ;[0681]
+                    rra                                     ;[067f] put this digit in upper nibble
+                    rra                                     ;[0680]  through rotation
+                    rra                                     ;[0681]  TODO: 5 times because is through carry?
                     rra                                     ;[0682]
                     rra                                     ;[0683]
                     ld      c,a                             ;[0684]
                     inc     de                              ;[0685]
                     ld      a,(de)                          ;[0686]
-                    cp      $41                             ;[0687]
+                    cp      $41                             ;[0687] Do the same thing as before...
                     jr      c,label_068d                    ;[0689]
                     sub     $07                             ;[068b]
 label_068d:
                     sub     $30                             ;[068d]
                     and     $0f                             ;[068f]
-                    add     c                               ;[0691]
+                    add     c                               ;[0691] Recompose the whole number
                     ld      (hl),a                          ;[0692]
                     ret                                     ;[0693]
 
 label_0694:
-                    ld      c,$02                           ;[0694]
-                    ld      e,$08                           ;[0696]
+                    ld      c,$02                           ;[0694] C_WRITE
+                    ld      e,$08                           ;[0696] Backspace?
                     call    GUARD_SYSCALL                   ;[0698]
                     jp      label_0649                      ;[069b]
 
@@ -815,7 +820,7 @@ err_nofile:
                     ld      de,STR_MODULE                   ;[06bc]
                     ld      c,$09                           ;[06bf] C_WRITESTR
                     call    GUARD_SYSCALL                   ;[06c1]
-                    ld      hl,$06fe                        ;[06c4]
+                    ld      hl,fd+1                         ;[06c4]
                     ld      b,$08                           ;[06c7]
 L06c9:
                     ld      a,(hl)                          ;[06c9]
@@ -835,8 +840,8 @@ label_06d7:
 error_epilogue:
                     ld      c,$09                           ;[06e2] C_WRITESTR
                     call    GUARD_SYSCALL                   ;[06e4]
-                    ld      de,$0720                        ;[06e7]
-                    ld      c,$13                           ;[06ea] F_DELETE
+                    ld      de,tmpfd                        ;[06e7]
+                    ld      c,$13                           ;[06ea] F_DELETE(tmpfd)
                     call    GUARD_SYSCALL                   ;[06ec]
                     jp      $0000                           ;[06ef] Reset
 
@@ -987,7 +992,7 @@ STR_SPACES:                                                 ;[0934]
                     DB      "\x1B\x3D\x37"
                     DB      "                                                                     $"
 
-                    ; TODO                                  ;[097d]
+STR_SYM:            ; TODO                                  ;[097d]
                     DB      "\x1b=(!$"
                     DB      "\x1b=)!$"
                     DB      "\x1b=+#$"
@@ -1020,10 +1025,10 @@ STR_INCOMPATIBLE:                                           ;[0a15]
 
                     ;[0a3e]
 STR_FILENAME:
-                    DB      "SLF00"
-                    ;[0a43]
-                    DB      $20,$24
-STR_SPECIAL:                                                ;[0a45]
+                    DB      "SLF"
+
+STR_SPECIAL:                                                ;[0a41]
+                    DB      "00 $"
                     DB      "BEL$"
                     DB      "CLS$"
                     DB      "DEL$"
@@ -1050,24 +1055,31 @@ layout_p:
                     ; Points to the slfbuff area used to load the chunks
                     ; of the SLF file (i.e. the buffer where the file is placed)
 dmaoff_p:
-                    DW 0x0000                               ;[0a77] 00
-                    nop                                     ;[0a79] 00
-                    nop                                     ;[0a7a] 00
-                    nop                                     ;[0a7b] 00
-                    nop                                     ;[0a7c] 00
+                    DW 0x0000                               ;[0a77]
+                    ; Buffer for the new character to be mapped to the selected
+                    ; scancode
+newcharbuf:
+                    DW 0x0000                               ;[0a79]
+                    ; Pointer to characters inside slfbuff, used to print each
+                    ; character on screen to dispay current keymap
+charmap_p:
+                    DW 0x0000                               ;[0a7b]
 
 IO_KBDST:                                                   ;[0a7d]
                     DB 0
 
 IO_KBDCH:                                                   ;[0a7e]
                     DB 0
-
-                    ; Stack (i think) from here, up to 0ab4 excluded
-                    nop                                     ;[0a7f] 00
-
+                    ; TODO: may be the new character value to be assigned to a
+                    ; certain scancode. But I have to verify this.
+newchar:
+                    DB 0                                    ;[0a7f]
                     ; TODO. it is 0 when handling NORMAL, 1 when SHIFT or CONTROL
+isnotplain:
                     DB 0                                    ;[0a80]
-                    nop                                     ;[0a81]
+slf_block_size:
+                    DB 0                                    ;[0a81]
+
                     or      a                               ;[0a82] b7
                     nop                                     ;[0a83] 00
                     nop                                     ;[0a84] 00

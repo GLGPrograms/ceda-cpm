@@ -1,0 +1,20 @@
+name: 'Quality assurance pipeline'
+
+on: push
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    container: giomba/ceda-rom-disassembly:1
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+      - name: Build and test of CP/M components
+        run: |
+          make assemble
+          make tests
+      - name: Build and test of CP/M applications
+        run: |
+          cd applications
+          make assemble
+          make tests

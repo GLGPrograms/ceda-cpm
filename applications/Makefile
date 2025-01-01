@@ -1,12 +1,17 @@
 .POSIX:
 
 ECHO	:=	@echo
-QUIET	:=	@
+QUIET	:=  @
 
-ASM     := cpm_bios.asm
-ASM     += cpm_loader.asm
+ASM     := FUNK00.COM.asm
+ASM     += PAR8003.COM.asm
+ASM     += PAR8003.relocated.asm
+ASM     += SLF80037.COM.asm
+ASM     += SLF80037.relocated.asm
 
 CHK_FILENAME := md5sum.txt
+
+BIN     := $(patsubst %.asm, build/%, $(ASM))
 
 CHK     := $(patsubst %.asm, %.chk, $(ASM))
 
@@ -21,12 +26,12 @@ checksum: $(CHK)
 .PHONY: assemble
 assemble: $(BIN)
 
-build/%.bin: %.asm
+build/%: %.asm
 	$(QUIET) mkdir -p `dirname $@`
 	$(ECHO) '	ASM $<'
-	$(QUIET) zcc +z80 -subtype=none -o $@ $<
+	$(QUIET) z80asm -b -o$@ $<
 
-%.chk: build/%.bin
+%.chk: build/%
 	$(ECHO) '	SUM $<'
 	$(QUIET) grep "`md5sum "$<"`" $(CHK_FILENAME) > /dev/null
 

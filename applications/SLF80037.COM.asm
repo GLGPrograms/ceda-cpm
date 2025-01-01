@@ -414,16 +414,6 @@ unreach1:
     DB $00,$C3,$00,$00,$C3,$00,$00,$C3,$00,$00,$C3,$00,$00,$C3
     DB $00,$00,$C3,$00,$00,$C3,$00,$00,$C3,$00,$00
 
-    ; This strange string is inside this unreachable blob
-    ; kept here, with its address, just for reference
-    ; strange_str:                          ;[0768]
-    ; DB "  SPHLDI  XCHGPCHLXTHLRET HLT CMC STC CMA DAA RAR RAL"
-    ; DB " RRC RLC NOP CPI ORI XRI ANI SBI IN  SUI OUT ACI ADI "
-    ; DB "CALLJMP LDA STA LHLDSHLDMOV ADD ADC SUB SBB ANA XRA O"
-    ; DB "RA CMP INR DCR MVI LXI STAXINX DAD LDAXDCX RST PSW PO"
-    ; DB "P PUSHNZZ NCC POPEP M B C D E H L M A B   D   H   SP "
-    ; DB " PSW "
-
     ;; The following code will be relocated to $b821
 relocated_area:                             ;[1621]
     REPT 640
@@ -464,9 +454,9 @@ relocated_area:                             ;[1621]
     DB $bb
     DB $5d
     DB $bb
+    ;;  - - - - Relocated code ends here - - - -
 
     DB "8.10"                               ;[1dfc]
-    ;;  - - - - Relocated code ends here - - - -
 
 kbdlayout:                                  ;[1e00]
     DB $00,$1b,$24,$2a,$d2,$22,$27,$28,$29,$d3,$5f,$d0,$d4,$21,$3f,$7f

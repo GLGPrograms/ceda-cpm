@@ -1,0 +1,2 @@
+9a9b24ada6f7a7c7fac043b2c63fb5f8  build/cpm_bios.bin
+bd40b337ba7a9b538407c2d6ac188e7a  build/cpm_loader.bin

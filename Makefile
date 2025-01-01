@@ -6,7 +6,7 @@ QUIET	:=	@
 ASM     := cpm_bios.asm
 ASM     += cpm_loader.asm
 
-BIN     := $(patsubst %.asm, build/%.bin, $(ASM))
+CHK_FILENAME := md5sum.txt
 
 CHK     := $(patsubst %.asm, %.chk, $(ASM))
 
@@ -26,9 +26,9 @@ build/%.bin: %.asm
 	$(ECHO) '	ASM $<'
 	$(QUIET) zcc +z80 -subtype=none -o $@ $<
 
-%.chk: %.bin build/%.bin
+%.chk: build/%.bin
 	$(ECHO) '	SUM $<'
-	$(QUIET) diff build/$< $<
+	$(QUIET) grep "`md5sum "$<"`" $(CHK_FILENAME) > /dev/null
 
 .PHONY: clean
 clean:

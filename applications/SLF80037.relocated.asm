@@ -1,11 +1,13 @@
     org $b821
 
+    ; Empty, it's populated directly by the SLF80037 main code
 scancode_table:
     REPT 640                                ;[b821]
     nop
     ENDR
 
-mr2_table:                                  ;[baa1]
+    ; Local variables for the "accented letter print" routine
+alp_table:                                  ;[baa1]
     DB  $D0,$5C,$00
     DB  $D1,$7E,$00
     DB  $D2,$7B,$00
@@ -27,127 +29,135 @@ mr2_table:                                  ;[baa1]
     DB  $E2,$5D,$00
     DB  $00
 
-mr1_table:                                  ;[badb]
-    DB  $61,$DB,$D6
-    DB  $65,$DC,$D7
-    DB  $69,$DD,$D8
-    DB  $6F,$DE,$D9
-    DB  $75,$DF,$DA
+dkh_table:                                  ;[badb]
+    ; vowel,circumflex,umlaut
+    DB  $61,       $DB, $D6 ; a
+    DB  $65,       $DC, $D7 ; e
+    DB  $69,       $DD, $D8 ; i
+    DB  $6F,       $DE, $D9 ; o
+    DB  $75,       $DF, $DA ; u
     DB  $00
 
-mr1_scratch:                                ;[baeb]
+dkh_scratch:                                ;[baeb]
     DB  $00
 
-; Briefly, this routine takes c as parameter.
-; It has some kind of memory, since it uses mr1_scratch as internal status.
-; If c is $f1, mr1_scratch is set to 1 else is set to 2 and carry flag is set.
-; For all other values of c, the c value is used to find an entry in mr1_table table.
-; If mr1_scratch is zero, c itself is returned
-; If mr1_scratch is one, left value of the table is returned in c.
-; If mr1_scratch is two, right value of the table is returned in c.
-; At the end, mr1_scratch is clear.
-mysterious_routine_1:                       ;[baec]
+; Dead key handling
+; The routine takes c as parameter, which is the input char, and leaves the eventually
+; modified char in c as output. Carry is set if the output char should not be printed
+; (i.e. when a modifier key is pressed).
+; dkh_scratch is used as dead key status, deafult is 0 (no modifier key pressed and c itself
+; is returned).
+; There are two possible modifier keys that can change the output status: c=$f1 (up arrow) and
+; c=$f2 (down arrow).
+; If a modifier key is pressed, dkh_scratch is set to a value other than zero and carry is set:
+; this changes the behavior of the routine at the next call:
+; if the next pressed char is in dkh_table, then
+; - left value of the table is returned in c if dkh_scratch is 1 (circumflex modifier).
+; - right value of the table is returned in c if dkh_scratch is 2 (umlaut modifier).
+; - the unchanged character is returned if it's not in dkh_table.
+; At the end, dkh_scratch is clear.
+deadKeyHandler:                             ;[baec]
     ld a,c
     cp $f1
-    jr z,mr1_isf1
+    jr z,dkh_isf1
     cp $f2
-    jr nz,mr1_nof1f2
-    ld a,$02                                ; if $f2, write 2 in mr1_scratch and return
-    jr mr1_f1f2_epilogue
-mr1_isf1:
-    ld a,$01                                ; if $f1, write 1 in mr1_scratch and return
-mr1_f1f2_epilogue:
-    ld (mr1_scratch),a
+    jr nz,dkh_nof1f2
+    ld a,$02                                ; if $f2, write 2 in dkh_scratch and return
+    jr dkh_f1f2_epilogue
+dkh_isf1:
+    ld a,$01                                ; if $f1, write 1 in dkh_scratch and return
+dkh_f1f2_epilogue:
+    ld (dkh_scratch),a
     scf                                     ; carry set
     ret
     ; Anything but f1 and f2
-mr1_nof1f2:
-    ld a,(mr1_scratch)
+dkh_nof1f2:
+    ld a,(dkh_scratch)
     or a
-    jr z,mr1_return
-    ld hl,mr1_table
+    jr z,dkh_return
+    ld hl,dkh_table
     ld b,$05
-mr1_loop:
+dkh_loop:
     ld a,(hl)
     cp c
-    jr z,mr1_found
+    jr z,dkh_found
     inc hl
     inc hl
     inc hl
-    djnz mr1_loop
+    djnz dkh_loop
 epilogue:
     xor a
-    ld (mr1_scratch),a     ; clear mr1_scratch
-mr1_return:
+    ld (dkh_scratch),a     ; clear dkh_scratch
+dkh_return:
     ret
-mr1_found:
-    ld a,(mr1_scratch)
+dkh_found:
+    ld a,(dkh_scratch)
     ld b,$00
     ld c,a
     add hl,bc
-    ld c,(hl)                               ; c = hl + mr1_scratch
+    ld c,(hl)                               ; c = hl + dkh_scratch
     jr epilogue                             ; where hl is the pointer to found
 
 
 ; Briefly, this routine takes c as parameter.
 ; It has some kind of memory, since it uses:
-;   - mr2_scratch as internal status
+;   - alp_scratch as internal status
 ;   - the jp at the entrypoint as trampoline, since its jp address is altered at runtime!
-; By default, mr2_entrypoint1 is used as trampoline jp address.
-; Following this branch, c value is used to find an entry in the mr2_table table.
+; By default, alp_entrypoint1 is used as trampoline jp address.
+; Following this branch, c value is used to find an entry in the alp_table table.
 ; If found, left value of the entry is returned in c, right value in a.
-; A pointer to the the right value is stored in the mr2_scratch.
+; A pointer to the the right value is stored in the alp_scratch.
 ; If the right value is zero, the routine returns.
 ; If the right value is not zero, trampoline is altered enabling the secondary entrypoint.
 ; If the entrypoint has been altered, the next calls follow a fixed pattern:
-;   - mr2_entrypoint2: c cargument is returned as is, $08 is returned in a and
-;     trampoline is changed to mr2_entrypoint3.
-;   - mr2_entrypoint3: the right value that triggered the alternate path is loaded in c (via mr2_scratch).
+;   - alp_entrypoint2: c cargument is returned as is, $08 is returned in a and
+;     trampoline is changed to alp_entrypoint3.
+;   - alp_entrypoint3: the right value that triggered the alternate path is loaded in c (via alp_scratch).
 ;     a is zeroed and path is restored to the default entrypoint.
-mysterious_routine_2:                       ;[bb23]
-    jp mr2_entrypoint1                      ; this jp is altered at runtime!
-mr2_entrypoint1:
+accentedLetterPrintHandler:                 ;[bb23]
+    jp alp_entrypoint1                      ; this jp is altered at runtime!
+alp_entrypoint1:
     ld a,c
     bit 7,a
     ret z                                   ; return if bit 7 is cleared
-    ld hl,mr2_table
-mr2_loop:
+    ld hl,alp_table
+alp_loop:
     ld a,(hl)
     or a
     ret z
     cp c
     inc hl
-    jr z,mr2_mr1_found
+    jr z,alp_found
     inc hl
     inc hl
-    jr mr2_loop
-mr2_mr1_found:
+    jr alp_loop
+alp_found:
     ld c,(hl)
     inc hl
-    ld (mr2_scratch),hl
+    ld (alp_scratch),hl
     ld a,(hl)
     or a
     ret z
     ld a,c
-    ld de,mr2_entrypoint2                   ; change the entrypoint to the first stage alternate one
-    jr mr2_epilogue
+    ld de,alp_entrypoint2                   ; change the entrypoint to the first stage alternate one
+    jr alp_epilogue
 
-mr2_entrypoint2:                            ; first stage alternate entrypoint
+alp_entrypoint2:                            ; first stage alternate entrypoint
     ld a,$08
-    ld de,mr2_entrypoint3                   ; change the entrypoint to the second stage alternate one
-    jr mr2_epilogue
+    ld de,alp_entrypoint3                   ; change the entrypoint to the second stage alternate one
+    jr alp_epilogue
 
-mr2_entrypoint3:                            ; second stage alternate entrypoint
-    ld hl,(mr2_scratch)
+alp_entrypoint3:                            ; second stage alternate entrypoint
+    ld hl,(alp_scratch)
     ld c,(hl)                               ; take back the "right value" that triggered the alternate path
     xor a
-    ld de,mr2_entrypoint1                   ; restore the default entrypoint
-mr2_epilogue:
-    ld (mysterious_routine_2+1),de
+    ld de,alp_entrypoint1                   ; restore the default entrypoint
+alp_epilogue:
+    ld (accentedLetterPrintHandler+1),de
     or a                                    ; set flags according to a content
     ret                                     ; result is in a
 
-mr2_scratch:
+alp_scratch:
     DW  $0000
 
 ; This function is indirectly called by ROM's putchar during second stage escaping
@@ -177,12 +187,14 @@ pScancode_table:                            ;[bff2]
 pShortcuts_base:
     DB 0, 0                                 ;[bff4]
 
-    ; TODO referenced in CP/M BIOS when reading from kbd
-pMysterious_routine_1:                      ;[bff6]
-    DW mysterious_routine_1
-    ; TODO referenced in CP/M BIOS when writing to printer
-pMysterious_routine_2:                      ;[bff8]
-    DW mysterious_routine_2
+    ; Dead key handler pointer
+    ; referenced in CP/M BIOS when reading from kbd
+pDeadKeyHandler:                            ;[bff6]
+    DW deadKeyHandler
+    ; (TODO) Custom character print handler
+    ; referenced in CP/M BIOS when writing to printer
+pAccentedLetterPrintHandler:                ;[bff8]
+    DW accentedLetterPrintHandler
 
     ; Pointer to a custom routine used to handle escape during putchar.
     ; The routine is implemented here, and at the moment is just a ret.
@@ -191,9 +203,4 @@ pMysterious_routine_2:                      ;[bff8]
     ; unexpected behavior!
 pCustom_escape:                             ;[bffa]
     DW custom_escape
-
-    ; This version string is populated by the cpm_bios with "8003", but
-    ; SLF80037 overwrites it.
-version:                                    ;[bffc]
-    DB "8.10"
-    DB 0
+                                            ;[bffc]

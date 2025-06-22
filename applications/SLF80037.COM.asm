@@ -32,7 +32,13 @@ timer12_cfg:                                ;[0111]
     DB $00
 
     ;[0118]
-    DB $00,$00,$00,$80,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
+    DB $00,$00,$00
+
+iobyte_init:                                ;[011b]
+    DB $80
+
+    ;[011c]
+    DB $00,$00,$00,$00,$00,$00,$00,$00,$00,$00
     DB $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$e0,$80,$e3,$03
     DB $e3,$05,$e3,$01,$e3,$c1,$ff,$cb,$00,$00,$00,$00,$80,$00
     DB $cd,$30,$01,$0e,$09,$cd,$05,$00,$c1,$21,$07,$00,$7e,$3d
@@ -533,11 +539,11 @@ entrypoint:
     out     ($a1),a                         ;[2110]  (no displayed character?)
     ld      a,$00                           ;[2112]
     ld      ($0003),a                       ;[2114] I/O byte: set to zero (see below)
-    call    $2145                           ;[2117] TODO
+    call    loadrelocated                   ;[2117] load some pointers and routines used by ROM and CP/M bios
     call    loadkeys                        ;[211a] load the keyboard layout in the proper area
     call    loadshortcuts                   ;[211d] load the content of the shortcuts bar
-    ld      a,($011b)                       ;[2120] TODO $80
-    ld      ($0003),a                       ;[2123] I/O byte [TODO: https://www.mark-ogden.uk/mirrors/www.cirsovius.de/CPM/Projekte/Artikel/Grundlagen/IOByte/IOByte-de.html]
+    ld      a,(iobyte_init)                 ;[2120] Initialize I/O byte
+    ld      ($0003),a                       ;[2123] I/O byte [https://www.mark-ogden.uk/mirrors/www.cirsovius.de/CPM/Projekte/Artikel/Grundlagen/IOByte/IOByte-de.html]
     ld      c,$09                           ;[2126] C_WRITESTR(welcome_str)
     ld      de,welcome_str                  ;[2128] the  welcome string with CP/M version
     call    SYSCALL                         ;[212b]
@@ -553,13 +559,15 @@ entrypoint:
     ld      c,$00                           ;[2140] P_TERMCPM - System reset
     call    SYSCALL                         ;[2142]
 
-    ; in here: the content of some configuration variables
-    ; TODO
-    call    bank_off                        ;[2145] TODO
-    ld      de,$b821                        ;[2148]
-    ld      hl,relocated_area               ;[214b] TODO what's here?
-    ld      bc,$07db                        ;[214e]
-    ldir                                    ;[2151]
+    ; Load the relocated area in place (see SLF80037.relocated.asm)
+    ; This area contains pointers to keyboard layout area, keyboard shortcuts,
+    ; the dead keys handling, and the custom escape routine used in ROM's putchar.
+loadrelocated:
+    call    bank_off                        ;[2145]
+    ld      de,$b821                        ;[2148] base address of where the area should be relocated
+    ld      hl,relocated_area               ;[214b]
+    ld      bc,$07db                        ;[214e] relocated area size
+    ldir                                    ;[2151] memcpy($b821, relocated_area, 0x07db)
     call    bank_on                         ;[2153]
     ret                                     ;[2156]
 
@@ -578,8 +586,8 @@ loadkeys:
 loadshortcuts:
     call    bank_off                        ;[216a]
     ld      hl,($ffad)                      ;[216d] *$ffad=$feb4, loaded by cp/m bios
-    ld      ($bff4),hl                      ;[2170] store the shortcuts address in a local variable (TODO)
-    ld      de,shortcuts_str                ;[2173]
+    ld      ($bff4),hl                      ;[2170] update the pointer to the shortcuts (used by keyboard routine
+    ld      de,shortcuts_str                ;[2173]  in CP/M bios to recall commands)
     ex      de,hl                           ;[2176]
     ld      bc,$0050                        ;[2177] length of shortcuts string
     ldir                                    ;[217a] memcpy(*$ffad, shortcuts_str, 0x0050)

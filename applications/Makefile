@@ -8,6 +8,7 @@ ASM     += PAR8003.COM.asm
 ASM     += PAR8003.relocated.asm
 ASM     += SLF80037.COM.asm
 ASM     += SLF80037.relocated.asm
+ASM     += COPY8003.COM.asm
 
 CHK_FILENAME := md5sum.txt
 

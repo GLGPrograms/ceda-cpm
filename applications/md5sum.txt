@@ -3,3 +3,4 @@
 5c6f140b44c03539fea2e30eab1bb138  build/PAR8003.relocated
 8c0541188297d176ffa06d4cae53591f  build/SLF80037.COM
 b022bb2d88531e11fd4f6fc4c89f31ed  build/SLF80037.relocated
+2b5ea330d652f8da9cc47b3038dadbf9  build/COPY8003.COM

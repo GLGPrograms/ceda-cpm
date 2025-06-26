@@ -1,6 +1,5 @@
-; FUNK00, used to remap keyboard layout on a Sanco computer.
-; More information will come later, I hope.
-; z80asm FUNK00.COM.asm -b -o FUNK00.COM
+; SLF8003, something like an AUTOEXEC.BAT for Sanco computer.
+; z80asm SLF8003.COM.asm -b -o SLF8003.COM
 
     org 0x0100
 

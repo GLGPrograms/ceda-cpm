@@ -11,6 +11,7 @@ jobs:
         uses: actions/checkout@v3
       - name: Build and test of CP/M components
         run: |
+          cd cpm
           make assemble
           make tests
       - name: Build and test of CP/M applications

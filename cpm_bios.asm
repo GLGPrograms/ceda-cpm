@@ -315,8 +315,8 @@ conout:
     call    bank_switch_on                  ;[f3bf]
     ret                                     ;[f3c2]
 
-    ld      hl,($bff8)                      ;[f3c3] 2a f8 bf
-    jp      (hl)                            ;[f3c6] e9
+    ld      hl,($bff8)                      ;[f3c3] Handle accented letters (relocated SLF80037.COM code)
+    jp      (hl)                            ;[f3c6]
 
 ; Paper tape punch output
 ; Write the character in C to the "paper tape punch" - or whatever the current
@@ -361,21 +361,21 @@ label_f3e2:
 list:
     ld      hl,$0000                        ;[f3e6] big TODO, which printer??
     ld      ($f471),hl                      ;[f3e9]
-    ld      a,($0003)                       ;[f3ec]
-    cp      $81                             ;[f3ef]
-    call    z,$f3ab                         ;[f3f1]
+    ld      a,($0003)                       ;[f3ec] Fetch IOBYTE
+    cp      $81                             ;[f3ef] Check for LST=LPT, PUN=TTY, RDR=TTY, CON=CRT
+    call    z,$f3ab                         ;[f3f1] in this case, just CONOUT
 label_f3f4:
-    ld      a,($0003)                       ;[f3f4]
+    ld      a,($0003)                       ;[f3f4] Fetch IOBYTE
     rlc     a                               ;[f3f7]
     rlc     a                               ;[f3f9]
-    and     $03                             ;[f3fb]
+    and     $03                             ;[f3fb] Mask LST only
     or      a                               ;[f3fd]
-    jr      z,label_f408                    ;[f3fe]
+    jr      z,label_f408                    ;[f3fe] LST=0 - CONOUT
     dec     a                               ;[f400]
-    jr      z,label_f40b                    ;[f401]
+    jr      z,label_f40b                    ;[f401] LST=1 - just return
     dec     a                               ;[f403]
-    jr      z,label_f40c                    ;[f404]
-    jr      label_f432                      ;[f406]
+    jr      z,label_f40c                    ;[f404] LST=2
+    jr      label_f432                      ;[f406] LST=3
 label_f408:
     jp      $f3ab                           ;[f408]
 label_f40b:
@@ -383,7 +383,7 @@ label_f40b:
 
 label_f40c:
     in      a,($82)                         ;[f40c]
-    bit     7,a                             ;[f40e]
+    bit     7,a                             ;[f40e] Read "C7" register, printer port
     jr      z,label_f432                    ;[f410]
     ld      hl,($f471)                      ;[f412]
     dec     hl                              ;[f415]
@@ -392,15 +392,15 @@ label_f40c:
     or      l                               ;[f41a]
     jr      nz,label_f3f4                   ;[f41b]
     xor     a                               ;[f41d]
-    out     ($da),a                         ;[f41e]
-    call    $f368                           ;[f420]
+    out     ($da),a                         ;[f41e] beep...
+    call    $f368                           ;[f420] CONST, check if a character is ready
     or      a                               ;[f423]
-    jr      z,label_f3f4                    ;[f424]
-    call    $f372                           ;[f426]
-    cp      $1a                             ;[f429]
-    jr      nz,label_f3f4                   ;[f42b]
+    jr      z,label_f3f4                    ;[f424] if no char is ready, start back
+    call    $f372                           ;[f426] CONIN, fetch char
+    cp      $1a                             ;[f429] check if key is not SUB
+    jr      nz,label_f3f4                   ;[f42b]  then start back
     xor     a                               ;[f42d]
-    ld      ($0003),a                       ;[f42e]
+    ld      ($0003),a                       ;[f42e]  else reset IOBYTE
     ret                                     ;[f431]
 
 label_f432:
@@ -410,23 +410,24 @@ label_f432:
     call    $f6b0                           ;[f438]
 label_f43b:
     call    bank_switch_off                 ;[f43b]
-    call    $f3c3                           ;[f43e]
+    call    $f3c3                           ;[f43e] accented letters handler
     call    bank_switch_on                  ;[f441]
     jr      z,label_f44e                    ;[f444]
     push    bc                              ;[f446]
     ld      c,a                             ;[f447]
-    call    $f44e                           ;[f448]
+    call    label_f44e                      ;[f448] print out this char
     pop     bc                              ;[f44b]
     jr      label_f43b                      ;[f44c]
+
 label_f44e:
-    ld      a,($0003)                       ;[f44e]
-    and     $c0                             ;[f451]
+    ld      a,($0003)                       ;[f44e] read IOBYTE
+    and     $c0                             ;[f451] take LST
     cp      $c0                             ;[f453]
-    jp      z,$f3c7                         ;[f455]
+    jp      z,$f3c7                         ;[f455] if LST=3, jump
     ld      a,c                             ;[f458]
-    out     ($80),a                         ;[f459]
-    out     ($d0),a                         ;[f45b]
-    out     ($d2),a                         ;[f45d]
+    out     ($80),a                         ;[f459] output the char on PA (parallel port bits)
+    out     ($d0),a                         ;[f45b] printer handshake set
+    out     ($d2),a                         ;[f45d] printer handshake reset
     ret                                     ;[f45f]
 
     ld      a,$01                           ;[f460]

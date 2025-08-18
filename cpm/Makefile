@@ -24,7 +24,7 @@ assemble: $(BIN)
 build/%.bin: %.asm
 	$(QUIET) mkdir -p `dirname $@`
 	$(ECHO) '	ASM $<'
-	$(QUIET) zcc +z80 -subtype=none -o $@ $<
+	$(QUIET) z80asm -b -o$@ $<
 
 %.chk: build/%.bin
 	$(ECHO) '	SUM $<'

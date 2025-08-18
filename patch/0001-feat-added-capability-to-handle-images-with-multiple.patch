@@ -1,0 +1,787 @@
+From bb7e74a908f6cd774138b9ed15356e774430b9ea Mon Sep 17 00:00:00 2001
+From: giuliof <giulio@glgprograms.it>
+Date: Sun, 3 Aug 2025 12:28:19 +0200
+Subject: [PATCH 1/2] feat!: added capability to handle images with multiple
+ sectors-per-track values
+
+- added "boottrkgeometry" optional keyword to diskdefs where to specify an
+  alteration in boot track geometry, using format
+  <sectors_size>,<sectors_per_track>, separated by spaces.
+- extended support to posix driver to handle geometry exceptions.
+- TODO extend this to the other drivers (windows, libdsk).
+---
+ cpmfs.c        |  77 +++++++++++++-
+ cpmfs.h        |   1 +
+ device.h       |  11 +-
+ device_posix.c |  64 ++++++++++--
+ fsed.cpm.c     | 275 +++++++++++++++++++++++++++++++++++--------------
+ mkfs.cpm.c     |  29 +++++-
+ 6 files changed, 359 insertions(+), 98 deletions(-)
+
+diff --git a/cpmfs.c b/cpmfs.c
+index 5de3cff..91216aa 100644
+--- a/cpmfs.c
++++ b/cpmfs.c
+@@ -746,6 +746,78 @@ static int parseLine(struct cpmSuperBlock *d, const char *format, char *line, in
+           }
+         }
+         else if (strcmp(argv[0],"boottrk")==0) d->boottrk=strtol(argv[1],(char**)0,0);
++        else if (strcmp(argv[0],"boottrkgeometry")==0)
++        {
++          int pass,sectors;
++
++          for (pass=0; pass<2; ++pass)
++          {
++            int fieldno=0;
++            sectors=0;
++            for (s=argv[1]; *s; )
++            {
++              char *end;
++
++              int field=strtol(s,&end,10);
++              if (pass == 1)
++              {
++                switch (fieldno)
++                {
++                  case 0:
++                    d->boottrkfmt[sectors].secLength = field;
++                    break;
++
++                  case 1:
++                    d->boottrkfmt[sectors].sectrk = field;
++                    break;
++                }
++              }
++
++              if (end==s)
++              {
++                fprintf(stderr,"%s: invalid boottrkfmt `%s' at `%s' in line %d\n",cmd,argv[1],s,ln);
++                exit(1);
++              }
++              s=end;
++
++              // Separator between fields
++              if (*s==',')
++              {
++                fieldno++;
++                s++;
++              }
++              // Separator between sectors
++              else if (*s==' ')
++              {
++                sectors++;
++                fieldno=0;
++                s++;
++              }
++            }
++            // Count the last sector
++            sectors++;
++
++            if (sectors > d->boottrk)
++            {
++              fprintf(stderr,"%s: invalid boottrkfmt `%s' at `%s' in line %d\n",cmd,argv[1],s,ln);
++              exit(1);
++            }
++
++            // Add trailing null element
++            if (pass == 1) {
++              d->boottrkfmt[sectors].secLength = 0;
++              d->boottrkfmt[sectors].sectrk = 0;
++            }
++            sectors++;
++            if (fieldno==0)
++            {
++              fprintf(stderr,"%s: invalid boottrkfmt `%s' at `%s' in line %d\n",cmd,argv[1],s,ln);
++              exit(1);
++            }
++
++            if (pass==0) d->boottrkfmt=malloc(sizeof(struct trackFmt)*sectors);
++          }
++        }
+         else if (strcmp(argv[0],"offset")==0)  
+         {
+           off_t val;
+@@ -927,7 +999,7 @@ static int amsReadSuper(struct cpmSuperBlock *d, const char *format)
+   unsigned char boot_sector[512], *boot_spec;
+   const char *err;
+ 
+-  Device_setGeometry(&d->dev,512,9,40,0,"pcw180");
++  Device_setGeometry(&d->dev,512,9,40,0,d->boottrkfmt,"pcw180");
+   if ((err=Device_readSector(&d->dev, 0, 0, (char *)boot_sector)))
+   {
+     fprintf(stderr,"%s: Failed to read Amstrad superblock (%s)\n",cmd,err);
+@@ -1034,7 +1106,7 @@ int cpmReadSuper(struct cpmSuperBlock *d, struct cpmInode *root, const char *for
+   if (strcmp(format,"amstrad")==0) amsReadSuper(d,format);
+   else if (strncmp(format,"diskdef",7)==0) inlineReadSuper(d,format);
+   else diskdefReadSuper(d,format);
+-  boo = Device_setGeometry(&d->dev,d->secLength,d->sectrk,d->tracks,d->offset,d->libdskGeometry);
++  boo = Device_setGeometry(&d->dev,d->secLength,d->sectrk,d->tracks,d->offset,d->boottrkfmt,d->libdskGeometry);
+   if (boo) return -1;
+ 
+   if (d->skewtab==(int*)0) /* generate skew table */ /*{{{*/
+@@ -1252,6 +1324,7 @@ void cpmUmount(struct cpmSuperBlock *sb)
+   if (sb->type&CPMFS_DS_DATES) free(sb->ds);
+   free(sb->alv);
+   free(sb->skewtab);
++  free(sb->boottrkfmt);
+   free(sb->dir);
+   if (sb->passwdLength) free(sb->passwd);
+ }
+diff --git a/cpmfs.h b/cpmfs.h
+index 0f5a1a0..cf2a741 100644
+--- a/cpmfs.h
++++ b/cpmfs.h
+@@ -144,6 +144,7 @@ struct cpmSuperBlock
+   int maxdir;
+   int skew;
+   int boottrk;
++  struct trackFmt *boottrkfmt;
+   off_t offset;
+   int type;
+   int size;
+diff --git a/device.h b/device.h
+index 319604e..5929901 100644
+--- a/device.h
++++ b/device.h
+@@ -8,14 +8,18 @@
+ #define CPMDRV_WINNT 2 /* Windows NT floppy drive accessed via CreateFile */
+ #endif
+ 
++struct trackFmt {
++  int secLength;
++  int sectrk;
++};
++
+ struct Device
+ {
+   int opened;
+ 
+-  int secLength;
+   int tracks;
+-  int sectrk;
+   off_t offset;
++  struct trackFmt *geometry;
+ #if HAVE_LIBDSK_H
+   DSK_PDRIVER   dev;
+   DSK_GEOMETRY geom; 
+@@ -28,9 +32,10 @@ struct Device
+ };
+ 
+ const char *Device_open(struct Device *self, const char *filename, int mode, const char *deviceOpts);
+-const char *Device_setGeometry(struct Device *self, int secLength, int sectrk, int tracks, off_t offset, const char *libdskGeometry);
++const char *Device_setGeometry(struct Device *self, int secLength, int sectrk, int tracks, off_t offset, const struct trackFmt *boottrkfmt, const char *libdskGeometry);
+ const char *Device_close(struct Device *self);
+ const char *Device_readSector(const struct Device *self, int track, int sector, char *buf);
+ const char *Device_writeSector(const struct Device *self, int track, int sector, const char *buf);
++void Device_getTrackGeometry(const struct Device *this, int track, int *secPerTrack, int *bytesPerSector);
+ 
+ #endif
+diff --git a/device_posix.c b/device_posix.c
+index 5a28dcd..b8ca273 100644
+--- a/device_posix.c
++++ b/device_posix.c
+@@ -14,6 +14,23 @@
+ #endif
+ /*}}}*/
+ 
++static size_t computeOffset(const struct Device *this, int track, int sector) {
++  size_t offset = 0;
++
++  if (this->geometry)
++  {
++    for (int c_track = 0; c_track < track; c_track++)
++    {
++      struct trackFmt *trackinfo = &this->geometry[c_track];
++      offset += trackinfo->secLength * trackinfo->sectrk;
++    }
++
++    offset += this->geometry[track].secLength * sector;
++  }
++
++  return offset + this->offset;
++}
++
+ /* Device_open           -- Open an image file                      */ /*{{{*/
+ const char *Device_open(struct Device *this, const char *filename, int mode, const char *deviceOpts)
+ {
+@@ -23,12 +40,21 @@ const char *Device_open(struct Device *this, const char *filename, int mode, con
+ }
+ /*}}}*/
+ /* Device_setGeometry    -- Set disk geometry                       */ /*{{{*/
+-const char *Device_setGeometry(struct Device *this, int secLength, int sectrk, int tracks, off_t offset, const char *libdskGeometry)
++const char *Device_setGeometry(struct Device *this, int secLength, int sectrk, int tracks, off_t offset, const struct trackFmt *boottrkfmt, const char *libdskGeometry)
+ {
+-  this->secLength=secLength;
+-  this->sectrk=sectrk;
+   this->tracks=tracks;
+   this->offset=offset;
++  this->geometry=malloc(sizeof(struct trackFmt)*tracks);
++  // Preinitialize with default track geometry
++  for (int track = 0; track < tracks; track++) {
++    this->geometry[track].secLength = secLength;
++    this->geometry[track].sectrk=sectrk;
++  }
++  // Override the boot tracks
++  const struct trackFmt *tr = boottrkfmt;
++  for (struct trackFmt *tl = this->geometry; tr->secLength != 0 && tr->sectrk != 0; tl++,tr++) {
++    *tl=*tr;
++  }
+   return NULL;
+ }
+ /*}}}*/
+@@ -36,6 +62,7 @@ const char *Device_setGeometry(struct Device *this, int secLength, int sectrk, i
+ const char *Device_close(struct Device *this)
+ {
+   this->opened=0;
++  free(this->geometry);
+   return ((close(this->fd)==-1)?strerror(errno):(const char*)0);
+ }
+ /*}}}*/
+@@ -46,21 +73,22 @@ const char *Device_readSector(const struct Device *this, int track, int sector,
+ 
+   assert(this);
+   assert(sector>=0);
+-  assert(sector<this->sectrk);
+   assert(track>=0);
+   assert(track<this->tracks);
+   assert(buf);
+-  if (lseek(this->fd,(off_t)(((sector+track*this->sectrk)*this->secLength)+this->offset),SEEK_SET)==-1) 
++  int secLength=this->geometry[track].secLength;
++  assert(secLength>0);
++  if (lseek(this->fd,computeOffset(this, track, sector),SEEK_SET)==-1) 
+   {
+     return strerror(errno);
+   }
+-  if ((res=read(this->fd, buf, this->secLength)) != this->secLength) 
++  if ((res=read(this->fd, buf, secLength)) != secLength) 
+   {
+     if (res==-1)
+     {
+       return strerror(errno);
+     }
+-    else memset(buf+res,0,this->secLength-res); /* hit end of disk image */
++    else memset(buf+res,0,secLength-res); /* hit end of disk image */
+   }
+   return (const char*)0;
+ }
+@@ -69,14 +97,30 @@ const char *Device_readSector(const struct Device *this, int track, int sector,
+ const char *Device_writeSector(const struct Device *this, int track, int sector, const char *buf)
+ {
+   assert(sector>=0);
+-  assert(sector<this->sectrk);
+   assert(track>=0);
+   assert(track<this->tracks);
+-  if (lseek(this->fd,(off_t)(((sector+track*this->sectrk)*this->secLength)+this->offset),SEEK_SET)==-1)
++  int secLength=this->geometry[track].secLength;
++  assert(secLength>0);
++  if (lseek(this->fd,computeOffset(this, track, sector),SEEK_SET)==-1)
+   {
+     return strerror(errno);
+   }
+-  if (write(this->fd, buf, this->secLength) == this->secLength) return (const char*)0;
++  if (write(this->fd, buf, secLength) == secLength) return (const char*)0;
+   return strerror(errno);
+ }
+ /*}}}*/
++
++void Device_getTrackGeometry(const struct Device *this, int track, int *secPerTrack, int *bytesPerSector)
++{
++  assert(track>=0);
++  assert(track<this->tracks);
++
++  *secPerTrack = 0;
++  *bytesPerSector = 0;
++
++  if (this->geometry) {
++    struct trackFmt *fmt = &this->geometry[track];
++    *secPerTrack = fmt->sectrk;
++    *bytesPerSector = fmt->secLength;
++  }
++}
+\ No newline at end of file
+diff --git a/fsed.cpm.c b/fsed.cpm.c
+index e8e5a36..c7bc305 100644
+--- a/fsed.cpm.c
++++ b/fsed.cpm.c
+@@ -26,9 +26,16 @@
+ #endif
+ /*}}}*/
+ 
++struct trackSts_t {
++  int track; /* The currently selected track */
++  int sector; /* The currently selected sector */
++  int secLength; /* Sector size on the current track */
++  int secPerTrack; /* Number of sectors in current track */
++};
++
+ extern char **environ;
+ 
+-static char *mapbuf;
++static char *mapbuf = NULL;
+ 
+ static struct tm *cpmtime(char lday, char hday, char hour, char min) /*{{{*/
+ {
+@@ -153,13 +160,13 @@ static void map(struct cpmSuperBlock *sb) /*{{{*/
+ /*}}}*/
+ static void data(struct cpmSuperBlock *sb, const char *buf, unsigned long int pos) /*{{{*/
+ {
+-  int offset=(pos%sb->secLength)&~0x7f;
++  int offset=pos&~0x7f;
+   unsigned int i;
+ 
+   for (i=0; i<128; ++i)
+   {
+     move(4+(i>>4),(i&0x0f)*3+!!(i&0x8)); printw("%02x",buf[i+offset]&0xff);
+-    if (pos%sb->secLength==i+offset) attron(A_REVERSE);
++    if (pos==i+offset) attron(A_REVERSE);
+     move(4+(i>>4),50+(i&0x0f)); printw("%c",isprint((unsigned char)buf[i+offset]) ? buf[i+offset] : '.');
+     attroff(A_REVERSE);
+   }
+@@ -179,10 +186,13 @@ int main(int argc, char *argv[]) /*{{{*/
+   struct cpmInode root;
+   const char *format;
+   int c,usage=0;
+-  off_t pos;
++  off_t secOffset;
++  off_t fileOffset = 0;
+   chtype ch;
+   int reload;
+-  char *buf;
++  char *buf = NULL;
++  int bufSize = 0;
++  struct trackSts_t trackSts = {0};
+   /*}}}*/
+ 
+   /* parse options */ /*{{{*/
+@@ -216,12 +226,6 @@ int main(int argc, char *argv[]) /*{{{*/
+     exit(1);
+   }
+   /*}}}*/
+-  /* alloc sector buffers */ /*{{{*/
+-  if ((buf=malloc(drive.secLength))==(char*)0 || (mapbuf=malloc(drive.secLength))==(char*)0)
+-  {
+-    fprintf(stderr,"fsed.cpm: can not allocate sector buffer (%s).\n",strerror(errno));
+-    exit(1);
+-  }
+   /*}}}*/
+   /* init curses */ /*{{{*/
+   initscr();
+@@ -234,36 +238,54 @@ int main(int argc, char *argv[]) /*{{{*/
+   clear();
+   /*}}}*/
+ 
+-  pos=0;
++  secOffset=0;
+   reload=1;
+   do
+   {
+     /* display position and load data */ /*{{{*/
+     clear();
+-    move(2,0); printw("Byte %8lu (0x%08lx)  ",pos,pos);
+-    if (pos<(drive.boottrk*drive.sectrk*drive.secLength))
+-    {
+-      printw("Physical sector %3lu  ",((pos/drive.secLength)%drive.sectrk)+1);
+-    }
+-    else
+-    {
+-      printw("Sector %3lu ",((pos/drive.secLength)%drive.sectrk)+1);
+-      printw("(physical %3d)  ",drive.skewtab[(pos/drive.secLength)%drive.sectrk]+1);
+-    }
+-    printw("Offset %5lu  ",pos%drive.secLength);
+-    printw("Track %5lu",pos/(drive.secLength*drive.sectrk));
+-    move(LINES-3,0); printw("N)ext track    P)revious track");
+-    move(LINES-2,0); printw("n)ext record   p)revious record     f)orward byte      b)ackward byte");
+-    move(LINES-1,0); printw("i)nfo          q)uit");
+     if (reload)
+     {
+-      if (pos<(drive.boottrk*drive.sectrk*drive.secLength))
++      if (secOffset < 0)
++        trackSts.sector--;
++      if (trackSts.sector < 0)
++        trackSts.track--;
++
++      Device_getTrackGeometry(&drive.dev, trackSts.track, &trackSts.secPerTrack, &trackSts.secLength);
++
++      // fix sector
++      if (trackSts.sector < 0)
++        trackSts.sector = trackSts.secPerTrack-1;
++      if (trackSts.sector >= trackSts.secPerTrack)
++        trackSts.sector = trackSts.secPerTrack-1;
++
++      // fix offset
++      if (secOffset < 0)
++        secOffset += trackSts.secLength;
++      else if (secOffset > trackSts.secLength)
++        secOffset = trackSts.secLength-1;
++
++      /* alloc sector buffers */ /*{{{*/
++      if (bufSize < trackSts.secLength)
++      {
++        if (buf) { free(buf); buf = NULL;}
++        if (mapbuf) { free(mapbuf); mapbuf = NULL;}
++
++        if ((buf=malloc(trackSts.secLength))==(char*)0 || (mapbuf=malloc(trackSts.secLength))==(char*)0)
++        {
++          fprintf(stderr,"fsed.cpm: can not allocate sector buffer (%s).\n",strerror(errno));
++          exit(1);
++        }
++
++        bufSize = trackSts.secLength;
++      }
++      if (trackSts.track < drive.boottrk)
+       {
+-        err=Device_readSector(&drive.dev,pos/(drive.secLength*drive.sectrk),(pos/drive.secLength)%drive.sectrk,buf);
++        err=Device_readSector(&drive.dev,trackSts.track,trackSts.sector,buf);
+       }
+       else
+       {
+-        err=Device_readSector(&drive.dev,pos/(drive.secLength*drive.sectrk),drive.skewtab[(pos/drive.secLength)%drive.sectrk],buf);
++        err=Device_readSector(&drive.dev,trackSts.track,drive.skewtab[trackSts.sector],buf);
+       }
+       if (err)
+       {
+@@ -272,34 +294,78 @@ int main(int argc, char *argv[]) /*{{{*/
+       else reload=0;
+     }
+     /*}}}*/
++    fileOffset = secOffset;
++    if (trackSts.track < drive.boottrk)
++      fileOffset += trackSts.sector * trackSts.secLength;
++    else
++      fileOffset += drive.skewtab[trackSts.sector] * trackSts.secLength;
++    for (int track = 0; track < trackSts.track; track++)
++    {
++      int secPerTrack;
++      int secLength;
++      Device_getTrackGeometry(&drive.dev, track, &secPerTrack, &secLength);
++      fileOffset += secPerTrack * secLength;
++    }
++
++    move(2,0); printw("Byte %8lu (0x%08lx)  ",fileOffset,fileOffset);
++    if (trackSts.track < drive.boottrk)
++    {
++      printw("Physical sector %3lu  ",(unsigned long)(trackSts.sector+1));
++    }
++    else
++    {
++      printw("Sector %3lu ",(unsigned long)(trackSts.sector+1));
++      printw("(physical %3d)  ",drive.skewtab[trackSts.sector]+1);
++    }
++    printw("Offset %5lu  ",secOffset);
++    printw("Track %5lu",(unsigned long)(trackSts.track));
++    move(LINES-3,0); printw("N)ext track    P)revious track");
++    move(LINES-2,0); printw("n)ext record   p)revious record     f)orward byte      b)ackward byte");
++    move(LINES-1,0); printw("i)nfo          q)uit");
+ 
+     if /* position before end of system area */ /*{{{*/
+-    (pos<(drive.boottrk*drive.sectrk*drive.secLength))
++    (trackSts.track < drive.boottrk)
+     {
+       const char *msg;
+ 
+       msg="System area"; move(0,(COLS-strlen(msg))/2); printw(msg);
+       move(LINES-3,36); printw("F)orward 16 byte   B)ackward 16 byte");
+-      if (!reload) data(&drive,buf,pos);
++      if (!reload) data(&drive,buf,secOffset);
+       switch (ch=getch())
+       {
+         case 'F': /* next 16 byte */ /*{{{*/
+         {
+-          if (pos+16<(drive.sectrk*drive.tracks*(off_t)drive.secLength))
+-          {
+-            if (pos/drive.secLength!=(pos+16)/drive.secLength) reload=1;
+-            pos+=16;
++          off_t newOffset = secOffset+16;
++
++          if (newOffset >= trackSts.secLength) {
++            if (trackSts.track == (drive.tracks-1) && trackSts.sector == (trackSts.secPerTrack-1))
++              break;
++            newOffset -= trackSts.secLength;
++            trackSts.sector++;
++            if (trackSts.sector == trackSts.secPerTrack)
++            {
++              trackSts.sector=0;
++              trackSts.track++;
++            }
++            reload=1;
+           }
++
++          secOffset = newOffset;
+           break;
+         }
+         /*}}}*/
+         case 'B': /* previous 16 byte */ /*{{{*/
+         {
+-          if (pos>=16)
+-          {
+-            if (pos/drive.secLength!=(pos-16)/drive.secLength) reload=1;
+-            pos-=16;
++          off_t newOffset = secOffset-16;
++
++          if (newOffset < 0) {
++            if (trackSts.track == 0 && trackSts.sector == 0)
++              break;
++            // Compute the new offset and sector in reload
++            reload=1;
+           }
++
++          secOffset = newOffset;
+           break;
+         }
+         /*}}}*/
+@@ -307,12 +373,12 @@ int main(int argc, char *argv[]) /*{{{*/
+     }
+     /*}}}*/
+     else if /* position before end of directory area */ /*{{{*/
+-    (pos<(drive.boottrk*drive.sectrk*drive.secLength+drive.maxdir*32))
++    (trackSts.track == drive.boottrk && trackSts.sector == 0)
+     {
+       const char *msg;
+-      unsigned long entrystart=(pos&~0x1f)%drive.secLength;
+-      int entry=(pos-(drive.boottrk*drive.sectrk*drive.secLength))>>5;
+-      int offset=pos&0x1f;
++      unsigned long entrystart=secOffset&~0x1f;
++      int entry=secOffset>>5;
++      int offset=secOffset&0x1f;
+ 
+       msg="Directory area"; move(0,(COLS-strlen(msg))/2); printw(msg);
+       move(LINES-3,36); printw("F)orward entry     B)ackward entry");
+@@ -631,26 +697,42 @@ int main(int argc, char *argv[]) /*{{{*/
+         attroff(A_REVERSE);
+       }
+       /*}}}*/
+-      if (!reload) data(&drive,buf,pos);
++      if (!reload) data(&drive,buf,secOffset);
+       switch (ch=getch())
+       {
+         case 'F': /* next entry */ /*{{{*/
+         {
+-          if (pos+32<(drive.sectrk*drive.tracks*(off_t)drive.secLength))
+-          {
+-            if (pos/drive.secLength!=(pos+32)/drive.secLength) reload=1;
+-            pos+=32;
++          off_t newOffset = secOffset+32;
++
++          if (newOffset >= trackSts.secLength) {
++            if (trackSts.track == (drive.tracks-1) && trackSts.sector == (trackSts.secPerTrack-1))
++              break;
++            newOffset -= trackSts.secLength;
++            trackSts.sector++;
++            if (trackSts.sector == trackSts.secPerTrack)
++            {
++              trackSts.sector=0;
++              trackSts.track++;
++            }
++            reload=1;
+           }
++
++          secOffset = newOffset;
+           break;
+         }
+         /*}}}*/
+         case 'B': /* previous entry */ /*{{{*/
+         {
+-          if (pos>=32)
+-          {
+-            if (pos/drive.secLength!=(pos-32)/drive.secLength) reload=1;
+-            pos-=32;
++          off_t newOffset = secOffset-32;
++
++          if (newOffset < 0) {
++            if (trackSts.track == 0 && trackSts.sector == 0)
++              break;
++            // Compute the new offset and sector in reload
++            reload=1;
+           }
++
++          secOffset = newOffset;
+           break;
+         }
+         /*}}}*/
+@@ -662,7 +744,7 @@ int main(int argc, char *argv[]) /*{{{*/
+       const char *msg;
+ 
+       msg="Data area"; move(0,(COLS-strlen(msg))/2); printw(msg);
+-      if (!reload) data(&drive,buf,pos);
++      if (!reload) data(&drive,buf,secOffset);
+       ch=getch();
+     }
+     /*}}}*/
+@@ -672,61 +754,94 @@ int main(int argc, char *argv[]) /*{{{*/
+     {
+       case 'n': /* next record */ /*{{{*/
+       {
+-        if (pos+128<(drive.sectrk*drive.tracks*(off_t)drive.secLength))
+-        {
+-          if (pos/drive.secLength!=(pos+128)/drive.secLength) reload=1;
+-          pos+=128;
++        off_t newOffset = secOffset+128;
++
++        if (newOffset >= trackSts.secLength) {
++          if (trackSts.track == (drive.tracks-1) && trackSts.sector == (trackSts.secPerTrack-1))
++            break;
++          newOffset -= trackSts.secLength;
++          trackSts.sector++;
++          if (trackSts.sector == trackSts.secPerTrack)
++          {
++            trackSts.sector=0;
++            trackSts.track++;
++          }
++          reload=1;
+         }
++
++        secOffset = newOffset;
+         break;
+       }
+       /*}}}*/
+       case 'p': /* previous record */ /*{{{*/
+       {
+-        if (pos>=128)
+-        {
+-          if (pos/drive.secLength!=(pos-128)/drive.secLength) reload=1;
+-          pos-=128;
++        off_t newOffset = secOffset-128;
++
++        if (newOffset < 0) {
++          if (trackSts.track == 0 && trackSts.sector == 0)
++            break;
++          // Compute the new offset and sector in reload
++          reload=1;
+         }
++
++        secOffset = newOffset;
+         break;
+       }
+       /*}}}*/
+       case 'N': /* next track */ /*{{{*/
+       {
+-        if ((pos+drive.sectrk*drive.secLength)<(drive.sectrk*drive.tracks*drive.secLength))
+-        {
+-          pos+=drive.sectrk*drive.secLength;
+-          reload=1;
+-        }
++        if (trackSts.track == (drive.tracks-1))
++            break;
++
++        trackSts.track++;
++        reload=1;
+         break;
+       }
+       /*}}}*/
+       case 'P': /* previous track */ /*{{{*/
+       {
+-        if (pos>=drive.sectrk*drive.secLength)
+-        {
+-          pos-=drive.sectrk*drive.secLength;
+-          reload=1;
+-        }
++        if (trackSts.track == 0)
++          break;
++
++        trackSts.track--;
++        reload=1;
+         break;
+       }
+       /*}}}*/
+       case 'b': /* byte back */ /*{{{*/
+       {
+-        if (pos)
+-        {
+-          if (pos/drive.secLength!=(pos-1)/drive.secLength) reload=1;
+-          --pos;
++        off_t newOffset = secOffset-1;
++
++        if (newOffset < 0) {
++          if (trackSts.track == 0 && trackSts.sector == 0)
++            break;
++          // Compute the new offset and sector in reload
++          reload=1;
+         }
++
++        secOffset = newOffset;
+         break;
+       }
+       /*}}}*/
+       case 'f': /* byte forward */ /*{{{*/
+       {
+-        if (pos+1<drive.tracks*drive.sectrk*drive.secLength)
+-        {
+-          if (pos/drive.secLength!=(pos+1)/drive.secLength) reload=1;
+-          ++pos;
++        off_t newOffset = secOffset+1;
++
++        if (newOffset >= trackSts.secLength) {
++          if (trackSts.track == (drive.tracks-1) && trackSts.sector == (trackSts.secPerTrack-1))
++            break;
++
++          newOffset -= trackSts.secLength;
++          trackSts.sector++;
++          if (trackSts.sector == trackSts.secPerTrack)
++          {
++            trackSts.sector=0;
++            trackSts.track++;
++          }
++          reload=1;
+         }
++
++        secOffset = newOffset;
+         break;
+       }
+       /*}}}*/
+diff --git a/mkfs.cpm.c b/mkfs.cpm.c
+index 2c37bdf..4d1edbc 100644
+--- a/mkfs.cpm.c
++++ b/mkfs.cpm.c
+@@ -21,6 +21,29 @@
+ #endif
+ /*}}}*/
+ 
++static size_t computeBootTrackSize(const struct cpmSuperBlock* drive) {
++  if (drive->boottrkfmt)
++  {
++    size_t bootTrackSize = 0;
++    int track;
++
++    for (track = 0; track < drive->boottrk; track++)
++    {
++      struct trackFmt *trackinfo = &drive->boottrkfmt[track];
++      if (trackinfo->secLength == 0 && trackinfo->sectrk == 0)
++        break;
++
++      bootTrackSize += trackinfo->secLength * trackinfo->sectrk;
++    }
++
++    bootTrackSize += (drive->boottrk - track) * drive->secLength * drive->sectrk;
++
++    return bootTrackSize;
++  }
++
++  return drive->secLength * drive->sectrk * drive->boottrk;
++}
++
+ /* mkfs -- make file system */ /*{{{*/
+ static int mkfs(struct cpmSuperBlock *drive, const char *name, const char *format, const char *label, char *bootTracks, int timeStamps)
+ {
+@@ -42,8 +65,8 @@ static int mkfs(struct cpmSuperBlock *drive, const char *name, const char *forma
+   /*}}}*/
+   /* write system tracks */ /*{{{*/
+   /* this initialises only whole tracks, so it skew is not an issue */
+-  trkbytes=drive->secLength*drive->sectrk;
+-  for (i=0; i<trkbytes*drive->boottrk; i+=drive->secLength) if (write(fd, bootTracks+i, drive->secLength)!=(ssize_t)drive->secLength)
++  trkbytes=computeBootTrackSize(drive);
++  if (write(fd, bootTracks, trkbytes)!=(ssize_t)trkbytes)
+   {
+     boo=strerror(errno);
+     close(fd);
+@@ -198,7 +221,7 @@ int main(int argc, char *argv[]) /*{{{*/
+   }
+   drive.dev.opened=0;
+   cpmReadSuper(&drive,&root,format);
+-  bootTrackSize=drive.boottrk*drive.secLength*drive.sectrk;
++  bootTrackSize= computeBootTrackSize(&drive);
+   if ((bootTracks=malloc(bootTrackSize))==(void*)0)
+   {
+     fprintf(stderr,"%s: can not allocate boot track buffer: %s\n",cmd,strerror(errno));
+-- 
+2.50.1
+

@@ -1,1 +1,14 @@
-build
+build/
+disks/
+cpmtools/
+.vscode/
+
+*.bin
+*.com
+*.COM
+*.o
+*.lis
+*.def
+*.map
+*.sym
+*.bak

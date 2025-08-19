@@ -31,16 +31,19 @@ To better handle the disassmbley and analysis of the CP/M components, each one w
 At the moment, only the loader and the BIOS are disassemblied.
 To build them, just run
 
+    cd cpm
     make assemble
 
 To check the asm file consistency, run
 
+    cd cpm
     make test
 
 ### Handle CP/M file system
 
 The CP/M file system onto the `SANCO8003_CPM_2.2fr.bin` image may be accessed using the [cpmtools](http://www.moria.de/~michael/cpmtools/).
 An appropriate disk definition file is needed (`diskdefs`), which is included in this repository.
+Some of the applications, in particular the ones that are implemented for the Sanco computers, can be found dissassembled and commented in [applications](applications/README.md) folder.
 
 #### Print the content of the disk
 

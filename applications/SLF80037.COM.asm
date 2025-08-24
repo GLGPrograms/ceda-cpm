@@ -522,7 +522,7 @@ shortcuts_str:                              ;[2080]
     ;; The system ROM code starts back here, same as before
 romjunk1:
     DB $3F,$FE,$FF,$C8,$06,$14,$3A,$B8,$FF,$FE,$03,$28,$02,$06
-    DB $40,$C5,$3A,$31,$2E,$31,$31,$39,$00,$C4,$ED,$4B,$B9,$FF
+    DB $40,$C5,$CD,$07,$C4,$0E,$4D,$CD,$00,$C4,$ED,$4B,$B9,$FF
     DB $CD,$00,$C4,$3A,$B8,$FF,$4F,$CD,$00,$C4,$0E,$05,$3A,$B8
     DB $FF,$FE,$03,$28,$02,$0E
 

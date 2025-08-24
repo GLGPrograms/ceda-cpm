@@ -130,18 +130,21 @@ patchslf() {
     local locale=$1
     log "Patching SLF80037.COM for locale=$locale..."
     local slf80037
+
     new_tmp
     slf80037=$TMP
 
     make -C applications build/SLF80037.COM > /dev/null
     cp applications/build/SLF80037.COM "$slf80037"
 
-    # Patch keyboard layout
-    dd conv=notrunc bs=1 seek=7424 status=none \
-        if="applications/localization/keymap_${locale}.bin" of="$slf80037"
+    if [[ $locale != "" ]]; then
+        # Patch keyboard layout
+        dd conv=notrunc bs=1 seek=7424 status=none \
+            if="applications/localization/keymap_${locale}.bin" of="$slf80037"
 
-    # Patch 2-letter locale string at offset 303
-    echo -n "$locale" | dd conv=notrunc,ucase bs=1 count=2 seek=303 status=none of="$slf80037"
+        # Patch 2-letter locale string at offset 303
+        echo -n "$locale" | dd conv=notrunc,ucase bs=1 count=2 seek=303 status=none of="$slf80037"
+    fi
 
     SLF="$slf80037"
 }
@@ -151,8 +154,14 @@ patchslf() {
 # -----------------------------------------------------------------------------
 makedisk() {
     local locale=$1
-    validate_locale "$locale"
-    local filename="disks/SANCO-CPM22_${locale}.bin"
+    local filename="disks"
+    if [[ $locale != "" ]]; then
+        validate_locale "$locale"
+        filename="$filename/SANCO-CPM22_${locale}.bin"
+    else
+        filename="$filename/SANCO-CPM22.bin"
+    fi
+
 
     log "Building disk image: $filename"
 
@@ -190,6 +199,10 @@ makedisk() {
 # -----------------------------------------------------------------------------
 prepare_cpmtools
 
+# Generate original image
+makedisk ""
+
+# Generate localized images
 for loc in us fr it; do
     makedisk "$loc"
 done

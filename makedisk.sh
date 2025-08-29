@@ -72,7 +72,7 @@ validate_locale() {
 prepare_cpmtools() {
     if [[ ! -d cpmtools ]]; then
         log "Cloning cpmtools repository..."
-        git clone https://github.com/lipro-cpm4l/cpmtools.git
+        git clone -b cpm4l/cpmtools-2.21 https://github.com/lipro-cpm4l/cpmtools.git
     fi
 
     pushd cpmtools > /dev/null

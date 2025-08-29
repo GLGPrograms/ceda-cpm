@@ -146,7 +146,7 @@ FDC_READ_BOOT_TRACK:
     ret                                     ;[0296]
 
 FDC_WRITE_BOOT_TRACK:
-    ld b,080h                               ;[0297]
+    ld b,080h                               ;[0297] Write command
     call FDC_SETUP_PARAMS                   ;[0299]
     ret                                     ;[029c]
 
@@ -157,12 +157,12 @@ FDC_SETUP_PARAMS:
     ld a,(CUR_DRIVE)                        ;[029d]
     ld c,a                                  ;[02a0]
     ld de,0000h                             ;[02a1]
-    ld hl,0900h                             ;[02a4]
-    ld a,001h                               ;[02a7]
+    ld hl,0900h                             ;[02a4] Destination buffer
+    ld a,001h                               ;[02a7] 256 bytes per sector (ssf)
     call ROM_FDC_RWFS                       ;[02a9]
-; Load entire side 1 track 1
+; Load entire side 1 track 0
     ld a,04h                                ;[02ac] Sector burst size = 4
-    add a,b                                 ;[02ae]
+    add a,b                                 ;[02ae] Change only sector burst size without affecting command
     ld b,a                                  ;[02af]
     ld a,(CUR_DRIVE)                        ;[02b0]
     ld c,a                                  ;[02b3]
@@ -171,7 +171,8 @@ FDC_SETUP_PARAMS:
     ld e,000h                               ;[02b8]
     set 7,e                                 ;[02ba] SBE=1
     ld hl,00980h                            ;[02bc] Note: part of the loader's sector is overwritten. But loader is less than 128 bytes
-    ld a,003h                               ;[02bf]
+    ld a,003h                               ;[02bf] 1024 bytes per sector (ssf)
+; Load sectors 1-15 from side 0 track 0
     call ROM_FDC_RWFS                       ;[02c1]
     ld a,00ah                               ;[02c4] sector burst size = 4 + 10 = 14
     add a,b                                 ;[02c6]

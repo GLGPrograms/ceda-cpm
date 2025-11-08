@@ -5,14 +5,14 @@
 
 - CONFIG80.COM: configuration of the serial port, **disassembly in progress**;
 - [COPY8003.COM](COPY8003.COM.asm): disk copy utility;
-- [FMT8003.COM](https://github.com/BayoDev/Sanco_8000/blob/main/CP-M/DISASSEMBLY/FMT8003_disassembly.z80): disk format utility;
+- [FMT8003.COM](FMT8003.COM.asm): disk format utility;
 - [FUNK00.COM](FUNK00.COM.asm): keymap configuration;
 - [PAR8003.COM](PAR8003.COM.asm): configure diskette units;
 - [REV.COM](REV.COM): delete files;
-- [RCX62.COM](https://github.com/BayoDev/Sanco_8000/blob/main/CP-M/DISASSEMBLY/RCX62_disassembly.z80): receive data from serial port;
+- [RCX62.COM](RCX62.COM.asm): receive data from serial port;
 - [SG8003.COM](SG8003.COM.asm): boot sector copier, used to change the boot program
 - [SLF80037.COM](SLF80037.COM.asm): bootstrap application;
-- [TERM80.COM](https://github.com/BayoDev/Sanco_8000/blob/main/CP-M/DISASSEMBLY/TERM80_disassembly.z80): serial terminal;
+- [TERM80.COM](TERM80.COM.asm): serial terminal;
 - [TRX62.COM](TRX62.COM): send data through serial port;
 
 ## CP/M system tools and applications

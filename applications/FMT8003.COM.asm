@@ -6,7 +6,8 @@
     
     ORG $0100
     
-    ld      sp,$0100                        ;[0100]
+l0100:
+    ld      sp,l0100                        ;[0100]
     call    OUT_STRING                      ;[0103]
     
     DB      $0D
@@ -27,14 +28,14 @@ DRIVE_SEL_PROMPT:
     DB      $00
     
     call    IN_LINE                         ;[0155]
-    ld      a,($02d8)                       ;[0158] Get lenght of input string
+    ld      a,(l02d8)                       ;[0158] Get lenght of input string
     or      a                               ;[015b]
     jp      z,RST_FLOPPY_AND_CPM            ;[015c] Exit program if the input string is empty
     cp      $02                             ;[015f]
     jr      nc,DRIVE_SEL_PROMPT             ;[0161] Jump if the input string is > 2 char long
-    ld      a,($02d9)                       ;[0163] Load first input char
+    ld      a,(l02d9)                       ;[0163] Load first input char
     res     5,a                             ;[0166] Reset 5th bit of the A register
-    ld      ($0198),a                       ;[0168] Change the next string to display the drive letter
+    ld      (l0198),a                       ;[0168] Change the next string to display the drive letter
     cp      $41                             ;[016b] Check if input == 'A'
     jr      c,DRIVE_SEL_PROMPT              ;[016d] Jump if the input is < than 'A' (Invalid input)
     cp      $43                             ;[016f] Check if input == 'B'
@@ -42,11 +43,13 @@ DRIVE_SEL_PROMPT:
     dec     a                               ;[0173]
     and     $03                             ;[0174]
     ld      (DRIVE_SEL),a                   ;[0176] Save drive selection in memory
+l0179:
     call    OUT_STRING                      ;[0179]
     
     DB      $0D
     DB      $0A
     DB      "INSERT NEW DISKETTE DRIVE "
+l0198:
     DB      $00                             ;[0198] This will contain the drive letter
     DB      $3A
     DB      $0D
@@ -68,7 +71,7 @@ DRIVE_SEL_PROMPT:
     xor     a                               ;[01c6] Resets register A
     ld      (TRACK_CUR),a                   ;[01c7] Set the current track to $00
     ld      a,$08                           ;[01ca]
-    ld      ($03e8),a                       ;[01cc] Set $03e8 to $08
+    ld      (l03e8),a                       ;[01cc] Set l03e8 to $08
     call    ZERO_SEEK                       ;[01cf]
 FORMAT_LOOP:
     call    L0373                           ;[01d2]
@@ -76,10 +79,11 @@ FORMAT_LOOP:
     call    FORMAT_TRACK                    ;[01d8]
     ld      a,(DRIVE_SEL)                   ;[01db]
     bit     2,a                             ;[01de]
-    jr      nz,$01ea                        ;[01e0]
+    jr      nz,l01ea                        ;[01e0]
     set     2,a                             ;[01e2]
     ld      (DRIVE_SEL),a                   ;[01e4] Set DRIVE_SEL[2] to 1 if not already
     jp      FORMAT_LOOP                     ;[01e7]
+l01ea:
     res     2,a                             ;[01ea] Reset 2nd bit of DRIVE_SEL
     ld      (DRIVE_SEL),a                   ;[01ec]
     ld      a,(TRACK_CUR)                   ;[01ef]
@@ -98,10 +102,10 @@ START_VERIFY:
     DB      "VERIFY START"
     DB      $00
     
-    ld      ix,$040d                        ;[0213]
+    ld      ix,l040d                        ;[0213]
     ld      a,(DRIVE_SEL)                   ;[0217]
     and     $03                             ;[021a]
-    ld      (ix+$00),a                      ;[021c] ($040d) = DRIVE_SEL[0:1]
+    ld      (ix+$00),a                      ;[021c] (l040d) = DRIVE_SEL[0:1]
     ld      (ix+$01),$28                    ;[021f]
     ld      (ix+$02),$10                    ;[0223]
     ld      (ix+$03),$05                    ;[0227]
@@ -117,7 +121,7 @@ START_VERIFY:
     DB      "VERIFY COMPLETED"
     DB      $00
     
-    jp      $0179                           ;[0251] Jump back to disk insertion
+    jp      l0179                           ;[0251] Jump back to disk insertion
     
 VERIFY_ERROR:
     push    de                              ;[0254]
@@ -173,9 +177,10 @@ OUT_DEC:
     ld      a,e                             ;[02aa]
     ld      b,$0a                           ;[02ab]
     ld      c,$ff                           ;[02ad]
+l02af:
     inc     c                               ;[02af]
     sub     b                               ;[02b0]
-    jr      nc,$02af                        ;[02b1] Subtract $0a from the A register and increment C until A<0
+    jr      nc,l02af                        ;[02b1] Subtract $0a from the A register and increment C until A<0
     add     b                               ;[02b3] In the end this is A=A%B and C=A/B
     ld      b,a                             ;[02b4]
     ld      a,c                             ;[02b5]
@@ -196,7 +201,7 @@ IN_LINE:
     push    bc                              ;[02c7]
     push    de                              ;[02c8]
     push    hl                              ;[02c9]
-    ld      de,$02d7                        ;[02ca]
+    ld      de,l02d7                        ;[02ca]
     ld      c,$0a                           ;[02cd]
     call    $0005                           ;[02cf]
     pop     hl                              ;[02d2]
@@ -206,8 +211,11 @@ IN_LINE:
     ret                                     ;[02d6]
     
 ; Text input buffer used in the IN_LINE function
+l02d7:
     DB $0a                                  ;[02d7]
+l02d8:
     DB $b8                                  ;[02d8]
+l02d9:
     DB $00                                  ;[02d9]
     DB $00                                  ;[02da]
     DB $00                                  ;[02db]
@@ -274,12 +282,14 @@ FORMAT_TRACK:
     ld      a,(TRACK_CUR)                   ;[0343]
     ld      d,a                             ;[0346] D = TRACK_CUR
     or      a                               ;[0347]
-    jr      nz,$0352                        ;[0348] Jump if TRUCK_CUR!=0
+    jr      nz,l0352                        ;[0348] Jump if TRUCK_CUR!=0
     bit     2,c                             ;[034a]
-    jr      nz,$0352                        ;[034c] Jump if DRIVE_SEL[2] != 0
+    jr      nz,l0352                        ;[034c] Jump if DRIVE_SEL[2] != 0
     ld      a,$01                           ;[034e]
-    jr      $0354                           ;[0350]
+    jr      l0354                           ;[0350]
+l0352:
     ld      a,$03                           ;[0352] If DRIVE_SEL[2]==1 -> A=$03 , ELSE -> A=$01
+l0354:
     ld      hl,$5000                        ;[0354] Address where the
     call    FDC_WRAPPER                     ;[0357] Call sanco's FDC routine for "format desired track"
     cp      $ff                             ;[035a]
@@ -305,14 +315,16 @@ L0373:
     ld      a,(TRACK_CUR)                   ;[0380]
     ld      d,a                             ;[0383]
     or      a                               ;[0384]
-    jr      nz,$0392                        ;[0385] Jump if TRACK_CUR!=0
+    jr      nz,l0392                        ;[0385] Jump if TRACK_CUR!=0
     bit     0,b                             ;[0387] Test DRIVE_SEL[2]
-    jr      nz,$0392                        ;[0389] Jump if !=0 (i.e. =1)
+    jr      nz,l0392                        ;[0389] Jump if !=0 (i.e. =1)
     ld      c,$01                           ;[038b]
     ld      a,$10                           ;[038d] Write 16 times with C=$01
-    jp      $0396                           ;[038f]
+    jp      l0396                           ;[038f]
+l0392:
     ld      a,$05                           ;[0392]
     ld      c,$03                           ;[0394] Write 5 times with C=$03
+l0396:
     ld      (hl),d                          ;[0396] Load TRACK_CUR
     inc     hl                              ;[0397]
     ld      (hl),b                          ;[0398] Load DRIVE_SEL[2]
@@ -323,7 +335,7 @@ L0373:
     inc     hl                              ;[039d]
     inc     e                               ;[039e] Increase counter
     dec     a                               ;[039f] Decrease limit
-    jp      nz,$0396                        ;[03a0] Jump if limit!=0
+    jp      nz,l0396                        ;[03a0] Jump if limit!=0
     ret                                     ;[03a3]
     
 FDC_WRAPPER:
@@ -364,12 +376,12 @@ OUT_DISK_TRACE:
     DB      $20                             ;" "
     DB      $00
     
-    ld      a,($03e8)                       ;[03d4]
+    ld      a,(l03e8)                       ;[03d4]
     dec     a                               ;[03d7] Decrement line counter
-    ld      ($03e8),a                       ;[03d8]
+    ld      (l03e8),a                       ;[03d8]
     ret     nz                              ;[03db] return if line counter != 0
     ld      a,$08                           ;[03dc]
-    ld      ($03e8),a                       ;[03de] Set ($03e8) to $08 again
+    ld      (l03e8),a                       ;[03de] Set (l03e8) to $08 again
     call    OUT_STRING                      ;[03e1]
     
     DB      $0D
@@ -378,19 +390,22 @@ OUT_DISK_TRACE:
     
     ret
     
+l03e8:
     DB $3A                                  ;[03e8]
     
 ; This funcion keeps printing characters starting from the address where
 ; the function was called + 1 until it encounters $00
 OUT_STRING:
     EX      (SP),HL                         ;[03e9]
+l03ea:
     ld      a, (hl)                         ;[03ea]
     inc     hl                              ;[03eb]
     or      a                               ;[03ec]
-    jr      z,$03f5                         ;[03ed]
+    jr      z,l03f5                         ;[03ed]
     ld      e,a                             ;[03ef]
     call    OUT_CHAR                        ;[03f0]
-    jr      $03ea                           ;[03f3]
+    jr      l03ea                           ;[03f3]
+l03f5:
     ex      (sp),hl                         ;[03f5]
     ret                                     ;[03f6]
     
@@ -424,6 +439,7 @@ DRIVE_SEL:
     DB 00                                   ;[040c]
     
 ; Reference values used in the verification process
+l040d:
     DB 00                                   ;[040d] $XX     Drive selection (Same format as DRIVE_SEL)
     DB 00                                   ;[040e] $28     Max number of tracks
     DB 00                                   ;[040f] $10     Sectors/track in side 0
@@ -433,88 +449,96 @@ DRIVE_SEL:
     
 READ_DISK:
     ld      a,(ix+$00)                      ;[0413]
-    ld      ($04ba),a                       ;[0416] ($04ba) = selected drive = (DRIVE_SEL[0:1])
+    ld      (l04ba),a                       ;[0416] (l04ba) = selected drive = (DRIVE_SEL[0:1])
     xor     a                               ;[0419]
-    ld      ($04b5),a                       ;[041a] Set ($04b5) = $00
+    ld      (l04b5),a                       ;[041a] Set (l04b5) = $00
+l041d:
     call    READ_TRACK                      ;[041d]
     or      a                               ;[0420]
     ret     nz                              ;[0421] Return if A!=$00 (failed)
-    ld      a,($04ba)                       ;[0422]
+    ld      a,(l04ba)                       ;[0422]
     bit     2,a                             ;[0425]
-    jr      nz,$0431                        ;[0427]
+    jr      nz,l0431                        ;[0427]
     set     2,a                             ;[0429]
-    ld      ($04ba),a                       ;[042b]
-    jp      $041d                           ;[042e]
+    ld      (l04ba),a                       ;[042b]
+    jp      l041d                           ;[042e]
+l0431:
     res     2,a                             ;[0431]
-    ld      ($04ba),a                       ;[0433] Invert side bit of select drive
-    ld      a,($04b5)                       ;[0436]
+    ld      (l04ba),a                       ;[0433] Invert side bit of select drive
+    ld      a,(l04b5)                       ;[0436]
     inc     a                               ;[0439]
-    ld      ($04b5),a                       ;[043a] Increase current track
+    ld      (l04b5),a                       ;[043a] Increase current track
     ld      b,a                             ;[043d]
     ld      a,(ix+$01)                      ;[043e]
     cp      b                               ;[0441]
-    jp      nz,$041d                        ;[0442] Jump if current track != number of sectors ($28)
+    jp      nz,l041d                        ;[0442] Jump if current track != number of sectors ($28)
     xor     a                               ;[0445]
     ret                                     ;[0446] Return A=$00
     
 READ_TRACK:
     xor     a                               ;[0447] Reset A
-    ld      ($04b6),a                       ;[0448] Set ($04b6) (i.e. current sector) = $00
+    ld      (l04b6),a                       ;[0448] Set (l04b6) (i.e. current sector) = $00
     ld      a,(ix+$03)                      ;[044b]
-    ld      ($04b7),a                       ;[044e] Set ($04b7) (i.e. max sector) = ($0410) = $05
+    ld      (l04b7),a                       ;[044e] Set (l04b7) (i.e. max sector) = (l0410) = $05
     ld      a,(ix+$05)                      ;[0451]
-    ld      ($04b8),a                       ;[0454] Set ($04b8) (i.e. bts shift factor) = ($0412)
+    ld      (l04b8),a                       ;[0454] Set (l04b8) (i.e. bts shift factor) = (l0412)
     ld      b,$43                           ;[0457] ??
-    ld      a,($04b5)                       ;[0459]
+    ld      a,(l04b5)                       ;[0459]
     or      a                               ;[045c]
-    jp      nz,$0474                        ;[045d] Jump if ($04b5) (i.e. current track) == $00
-    ld      a,($04ba)                       ;[0460]
+    jp      nz,l0474                        ;[045d] Jump if (l04b5) (i.e. current track) == $00
+    ld      a,(l04ba)                       ;[0460]
     bit     2,a                             ;[0463]
-    jp      nz,$0474                        ;[0465] Jump if ($04ba)[2]!=0 (Should be == DRIVE_SEL[2] so side select (?))
+    jp      nz,l0474                        ;[0465] Jump if (l04ba)[2]!=0 (Should be == DRIVE_SEL[2] so side select (?))
     ld      a,(ix+$02)                      ;[0468]
-    ld      ($04b7),a                       ;[046b] Set ($04b7) (i.e. number of sectors) = ($040f) = $10
+    ld      (l04b7),a                       ;[046b] Set (l04b7) (i.e. number of sectors) = (l040f) = $10
     ld      a,(ix+$04)                      ;[046e]
-    ld      ($04b8),a                       ;[0471] Set ($04b8) = ($0411) = bps shift factor = $01
+    ld      (l04b8),a                       ;[0471] Set (l04b8) = (l0411) = bps shift factor = $01
+l0474:
     ld      b,$40                           ;[0474] Set operation command for sanco's routine (read sector in the HL buffer)
-    ld      a,($04ba)                       ;[0476]
-    ld      c,a                             ;[0479] c = drive number = ($04ba)
-    ld      a,($04b5)                       ;[047a]
-    ld      d,a                             ;[047d] d = current track = ($04b5)
-    ld      a,($04b6)                       ;[047e]
-    ld      e,a                             ;[0481] e = current sector = ($04b6)
+    ld      a,(l04ba)                       ;[0476]
+    ld      c,a                             ;[0479] c = drive number = (l04ba)
+    ld      a,(l04b5)                       ;[047a]
+    ld      d,a                             ;[047d] d = current track = (l04b5)
+    ld      a,(l04b6)                       ;[047e]
+    ld      e,a                             ;[0481] e = current sector = (l04b6)
     ld      hl,$04bb                        ;[0482] hl = read buffer address = $04bb
-    ld      a,($04b8)                       ;[0485] a = bytes per sector shift factor = ($04b8)
+    ld      a,(l04b8)                       ;[0485] a = bytes per sector shift factor = (l04b8)
     call    $ffa3                           ;[0488]
     call    $c018                           ;[048b] Use sanco's routine to read sector in the HL buffer
     call    $ffa6                           ;[048e]
     or      a                               ;[0491]
     jp      nz,READ_TRACK_ERR               ;[0492] Jump if a!=0 <=> failed sanco's routine
-    ld      a,($04b6)                       ;[0495]
+    ld      a,(l04b6)                       ;[0495]
     inc     a                               ;[0498]
-    ld      ($04b6),a                       ;[0499] Increase ($04b6) = current sector
+    ld      (l04b6),a                       ;[0499] Increase (l04b6) = current sector
     ld      b,a                             ;[049c]
-    ld      a,($04b7)                       ;[049d]
+    ld      a,(l04b7)                       ;[049d]
     cp      b                               ;[04a0]
-    jp      nz,$0474                        ;[04a1] Jump if sector!=number of sectors
+    jp      nz,l0474                        ;[04a1] Jump if sector!=number of sectors
     xor     a                               ;[04a4] A = 0
     ret                                     ;[04a5] return
     
 READ_TRACK_ERR:
-    ld      a,($04b5)                       ;[04a6]
+    ld      a,(l04b5)                       ;[04a6]
     ld      d,a                             ;[04a9] d = current track
-    ld      a,($04b6)                       ;[04aa]
+    ld      a,(l04b6)                       ;[04aa]
     ld      e,a                             ;[04ad] e = current sector
-    ld      a,($04ba)                       ;[04ae]
+    ld      a,(l04ba)                       ;[04ae]
     ld      b,a                             ;[04b1] b = drive number
     ld      a,$ff                           ;[04b2] a = $ff
     ret                                     ;[04b4]
     
 ; Used in the verify process
+l04b5:
     DB $7a                                  ;[04b5] Current track
+l04b6:
     DB $b3                                  ;[04b6] Current sector
+l04b7:
     DB $2f                                  ;[04b7] Number of sectors
+l04b8:
     DB $ca                                  ;[04b8] Bytes per sector, shift factor
     DB $35                                  ;[04b9] Seems to be unused
+l04ba:
     DB $29                                  ;[04ba] Drive number
     
     
@@ -989,7 +1013,7 @@ READ_TRACK_ERR:
     DB      $3C                             ;'<'
     DB      $B7
     DB      $CA
-    DB      "                               ;+}2r@2
+    DB      ";+}2r@2"
     DB      $0F
     DB      $3D                             ;'='
     DB      $C3

@@ -6,3 +6,5 @@ b022bb2d88531e11fd4f6fc4c89f31ed  build/SLF80037.relocated
 2b5ea330d652f8da9cc47b3038dadbf9  build/COPY8003.COM
 8924c5c5c9f22f56f06dc1f913a091a4  build/SG8003.COM
 3cec9f3b89fd35aa1cd54a3997902085  build/TRX62.COM
+5d16bdc07ffe2845aa900d0fbb5d51d9  build/RCX62.COM.asm
+4288fafb9445ed7276a40b9a3c0e81b4  build/FMT8003.COM.asm

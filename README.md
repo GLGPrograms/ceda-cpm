@@ -80,10 +80,6 @@ $ cpmcp -f sanco SANCO8003_CPM_2.2fr.bin "0:*" disk/
 $ cpmcp -f sanco SANCO8003_CPM_2.2fr.bin test.bin "0:TEST.COM"
 ```
 
-## Other contributions
-
-- [RetroNewbie/Sanco_8000](https://github.com/RetroNewbie/Sanco_8000/tree/main/CP-M), some disassemblies of the software inside in this floppy.
-
 ## External references
 
 - [CP/M BIOS documentation](https://www.seasip.info/Cpm/bios.html).

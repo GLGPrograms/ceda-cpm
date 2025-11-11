@@ -12,7 +12,7 @@
 - [RCX62.COM](RCX62.COM.asm): receive data from serial port;
 - [SG8003.COM](SG8003.COM.asm): boot sector copier, used to change the boot program
 - [SLF80037.COM](SLF80037.COM.asm): bootstrap application;
-- [TERM80.COM](TERM80.COM.asm): serial terminal;
+- [TERM80.COM]([TERM80.COM.asm](https://github.com/BayoDev/Sanco_8000/blob/main/CP-M/DISASSEMBLY/TERM80_disassembly.z80)): serial terminal;
 - [TRX62.COM](TRX62.COM): send data through serial port;
 
 ## CP/M system tools and applications

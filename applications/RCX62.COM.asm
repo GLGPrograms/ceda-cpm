@@ -31,11 +31,11 @@ INIT:
     call    PRINT_NEXT_STR                  ;[011f]
     DB $0d                                  ;[0122]
     DB $0a                                  ;[0123]
-    .ASCII "File exchange program vers 6.0 ,4800 Baud (SED)";[0124]
+    DB "File exchange program vers 6.0 ,4800 Baud (SED)";[0124]
     DB $0d                                  ;[0153]
     DB $0a                                  ;[0154]
     DB $0a                                  ;[0155]
-    .ASCII "Ready to receive"               ;[0156]
+    DB "Ready to receive"               ;[0156]
     DB $0d                                  ;[0166]
     DB $0a                                  ;[0167]
     DB $00                                  ;[0168]
@@ -326,7 +326,7 @@ TRANSMISSION_END:
     DB $0D                                  ;[029b]
     DB $0A                                  ;[029c]
     DB $0A                                  ;[029d]
-    .ASCII "End of transmission"            ;[02a0]
+    DB "End of transmission"            ;[02a0]
     DB $0D                                  ;[02b3]
     DB $0A                                  ;[02b4]
     DB $00                                  ;[02b5]
@@ -415,7 +415,7 @@ FILE_NAME_ERROR:
     call    PRINT_NEXT_STR                  ;[034a]
     DB $0D                                  ;[034d]
     DB $0A                                  ;[034e]
-    .ASCII "File name error"                ;[034f]
+    DB "File name error"                ;[034f]
     DB $00                                  ;[035e]
     ld      a,$0d                           ;[035f]
     call    SIO_WRITE_WRAPPER               ;[0361]
@@ -425,7 +425,7 @@ DIR_FULL_ERROR:
     call    PRINT_NEXT_STR                  ;[0367]
     DB $0D                                  ;[036a]
     DB $0A                                  ;[036b]
-    .ASCII "Directory full"                 ;[036c]
+    DB "Directory full"                 ;[036c]
     DB $00                                  ;[037a]
     ld      a,$0d                           ;[037b]
     call    SIO_WRITE_WRAPPER               ;[037d]
@@ -435,7 +435,7 @@ FILE_TRANSFER_ERROR:
     call    PRINT_NEXT_STR                  ;[0383]
     DB $0D                                  ;[0386]
     DB $0A                                  ;[0387]
-    .ASCII "File transfer error"            ;[0388]
+    DB "File transfer error"            ;[0388]
     nop                                     ;[039b]
     ld      a,$0d                           ;[039c]
     call    SIO_WRITE_WRAPPER               ;[039e]
@@ -445,7 +445,7 @@ FILE_WRITE_ERROR:
     call    PRINT_NEXT_STR                  ;[03a4]
     DB $0D                                  ;[03a7]
     DB $0a                                  ;[03a8]
-    .ASCII "File write error"               ;[03a9]
+    DB "File write error"               ;[03a9]
     DB $00                                  ;[03b9]
     ld      a,$0d                           ;[03ba]
     call    SIO_WRITE_WRAPPER               ;[03bc]
@@ -455,7 +455,7 @@ CLOSING_ERROR:
     call    PRINT_NEXT_STR                  ;[03c2]
     DB $0D                                  ;[03c5]
     DB $0A                                  ;[03c6]
-    .ASCII "Closing error"                  ;[03c7]
+    DB "Closing error"                  ;[03c7]
     DB $00                                  ;[03d4]
     ld      a,$0d                           ;[03d5]
     call    SIO_WRITE_WRAPPER               ;[03d7]
@@ -465,7 +465,7 @@ FILE_ERROR:
     call    PRINT_NEXT_STR                  ;[03dd]
     DB $0D                                  ;[03e0]
     DB $0A                                  ;[03e1]
-    .ASCII "File error"                     ;[03e2]
+    DB "File error"                     ;[03e2]
     DB $00                                  ;[03ec]
     ld      a,$0d                           ;[03ed]
     call    SIO_WRITE_WRAPPER               ;[03ef]
@@ -476,7 +476,7 @@ RENAME_ERROR:
     call    PRINT_NEXT_STR                  ;[03f5]
     DB $0D                                  ;[03f8]
     DB $0A                                  ;[03f9]
-    .ASCII "Rename error"                   ;[03fa]
+    DB "Rename error"                   ;[03fa]
     DB $00                                  ;[0406]
     ld      a,$0d                           ;[0407]
     call    SIO_WRITE_WRAPPER               ;[0409]
@@ -498,19 +498,19 @@ PRINT_FILENAME:
     ex      de,hl                           ;[0419]
     inc     hl                              ;[041a]
     ld      b,$08                           ;[041b]
-.PRINT_NAME:
+PRINT_NAME:
     ld      a,(hl)                          ;[041d] A = (HL)
     call    C_WRITE                         ;[041e] Print A to CRT
     inc     hl                              ;[0421] HL++
-    djnz    .PRINT_NAME                     ;[0422] Decrement B and if B!=$00 jump. (Will jump 8 times)
+    djnz    PRINT_NAME                     ;[0422] Decrement B and if B!=$00 jump. (Will jump 8 times)
     ld      a,$2e                           ;[0424]
     call    C_WRITE                         ;[0426] Print '.'
     ld      b,$03                           ;[0429]
-.PRINT_EXT:
+PRINT_EXT:
     ld      a,(hl)                          ;[042b] A = (HL)
     call    C_WRITE                         ;[042c] Print A to CRT
     inc     hl                              ;[042f] HL++
-    djnz    .PRINT_EXT                      ;[0430] B-- and jump if B!=$00 (Will jump 3 times)
+    djnz    PRINT_EXT                      ;[0430] B-- and jump if B!=$00 (Will jump 3 times)
     ex      de,hl                           ;[0432]
     ret                                     ;[0433]
     
@@ -549,10 +549,10 @@ SIO_SETUP_COMMANDS:
 ; Write the character stored in the A register to port B of the SIO (Blocks until can transmit)
 SIO_WRITE:
     push af                                 ;[0461]
-.SIO_WRITE_LOOP:
+SIO_WRITE_LOOP:
     in      a,($b1)                         ;[0462]
     and     $04                             ;[0464]
-    jp      z,.SIO_WRITE_LOOP               ;[0466] Loop until SIO is ready to transmit
+    jp      z,SIO_WRITE_LOOP               ;[0466] Loop until SIO is ready to transmit
     pop     af                              ;[0469]
     out     ($b0),a                         ;[046a] Write A to SIO
     ret                                     ;[046c]

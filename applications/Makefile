@@ -11,6 +11,8 @@ ASM     += SLF80037.relocated.asm
 ASM     += COPY8003.COM.asm
 ASM     += SG8003.COM.asm
 ASM     += TRX62.COM.asm
+ASM     += RCX62.COM.asm
+ASM     += FMT8003.COM.asm
 
 CHK_FILENAME := md5sum.txt
 

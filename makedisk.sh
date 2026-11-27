@@ -24,7 +24,7 @@ CPMTOOLS_PREFIX=""                  # Set by prepare_cpmtools()
 
 # Applications to be copied into the CP/M disk
 # CORE = code that has been reversed and can be assembled from source
-CORE_APPS=(COPY8003.COM FUNK00.COM PAR8003.COM SG8003.COM TRX62.COM)
+CORE_APPS=(COPY8003.COM FMT8003.COM FUNK00.COM PAR8003.COM RCX62.COM SG8003.COM TRX62.COM)
 # EXTRA = all additional software that is not yet reversed (in this repo) or
 # we don't want to reverse
 # Applications from Digital Research
@@ -32,7 +32,7 @@ EXTRA_APPS=(ASM.COM DDT.COM DUMP.COM LOAD.COM PIP.COM STAT.COM SUBMIT.COM XSUB.C
 # Useful applications not from Digital Research
 EXTRA_APPS+=(ED.COM MBASIC.COM)
 # Specific applications for Ceda/Sanco that we have not yet reversed
-EXTRA_APPS+=(RCX62.COM TERM80.COM FMT8003.COM CONFIG80.COM)
+EXTRA_APPS+=(TERM80.COM CONFIG80.COM)
 
 # -----------------------------------------------------------------------------
 # Helpers
